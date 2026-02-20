@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     MINIMAX_API_KEY: str = ""
     MINIMAX_BASE_URL: str = "https://api.minimax.chat/v1"
     MINIMAX_MODEL: str = "MiniMax-M2.5"
-    EXTRACTION_CONCURRENCY: int = 5
+    EXTRACTION_CONCURRENCY: int = 10
 
     @property
     def cors_origins_list(self) -> List[str]:

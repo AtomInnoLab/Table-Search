@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from app.models.schemas import SearchRequest, SearchResponse
 from app.core.config import settings
-from app.mocks.mock_data import get_mock_papers, get_suggested_columns
+from app.mocks.mock_data import get_mock_papers, get_suggested_columns, FIXED_AUTO_COLUMNS
 from app.services.paper_store import store_paper, clear_all as clear_paper_cache
 
 router = APIRouter()
@@ -72,8 +72,7 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
     }
 
     paper_count = 0
-    seen_ids = set()
-    columns_sent = False
+    seen_ids: set[str] = set()
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -97,7 +96,6 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
                 buffer = ""
                 async for chunk in response.aiter_text():
                     buffer += chunk
-                    # 按双换行分割SSE消息
                     while "\n\n" in buffer:
                         msg, buffer = buffer.split("\n\n", 1)
                         msg = msg.strip()
@@ -132,7 +130,6 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
                                 continue
                             seen_ids.add(paper_id)
 
-                            # 解析authors
                             authors_raw = meta.get("authors", "")
                             if isinstance(authors_raw, str):
                                 authors = [a.strip() for a in authors_raw.split(",") if a.strip()]
@@ -157,24 +154,18 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
                             yield sse_event("paper", json.dumps(paper))
                             paper_count += 1
 
-                        # 从 search_verify_agent onAgentEnd 提取criteria作为推荐列
-                        elif name == "search_verify_agent" and event_type == "onAgentEnd" and not columns_sent:
-                            content = data.get("content", {})
-                            if isinstance(content, dict):
-                                criteria = content.get("metadata", {}).get("criteria", [])
-                                for i, c in enumerate(criteria):
-                                    col = {
-                                        "id": f"col_auto_{i}",
-                                        "name": c.get("name", f"Dimension {i+1}"),
-                                        "prompt": c.get("description", c.get("name", "")),
-                                    }
-                                    yield sse_event("column", json.dumps(col))
-                                columns_sent = True
-
     except httpx.TimeoutException:
         yield sse_event("error", json.dumps({"message": "Search timeout"}))
     except Exception as e:
         yield sse_event("error", json.dumps({"message": f"Search error: {str(e)}"}))
+
+    # 发送固定推荐列（Task + Method）
+    for i, col in enumerate(FIXED_AUTO_COLUMNS):
+        yield sse_event("column", json.dumps({
+            "id": f"col_auto_{i}",
+            "name": col["name"],
+            "prompt": col["prompt"],
+        }))
 
     yield sse_event("complete", json.dumps({"total": paper_count, "query": query}))
 

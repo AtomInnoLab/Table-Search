@@ -136,30 +136,12 @@ _PAGE2_PAPERS = [
 # 所有论文按页组织
 _ALL_PAGES = [_PAGE1_PAPERS, _PAGE2_PAPERS]
 
-# ============ 查询关键词 -> 推荐列 ============
+# ============ 固定推荐列 ============
 
-QUERY_COLUMN_MAPPING = {
-    "memory": [
-        {"name": "优化方法", "prompt": "What memory optimization technique is used?", "description": "内存优化的具体方法"},
-        {"name": "显存节省", "prompt": "How much memory is saved?", "description": "节省的显存百分比或倍数"},
-        {"name": "硬件环境", "prompt": "What hardware is used for experiments?", "description": "实验使用的GPU型号"},
-    ],
-    "model": [
-        {"name": "模型架构", "prompt": "What is the model architecture?", "description": "模型的基本架构类型"},
-        {"name": "参数量", "prompt": "How many parameters does the model have?", "description": "模型的参数规模"},
-        {"name": "训练数据", "prompt": "What dataset is used for training?", "description": "训练使用的数据集"},
-    ],
-    "attention": [
-        {"name": "注意力机制", "prompt": "What attention mechanism is used?", "description": "使用的注意力机制类型"},
-        {"name": "时间复杂度", "prompt": "What is the time complexity?", "description": "算法的时间复杂度"},
-        {"name": "性能提升", "prompt": "What is the speedup compared to baseline?", "description": "相对于基线的性能提升"},
-    ],
-    "default": [
-        {"name": "主要方法", "prompt": "What is the main method proposed?", "description": "论文提出的主要方法"},
-        {"name": "实验数据集", "prompt": "What datasets are used for evaluation?", "description": "评估使用的数据集"},
-        {"name": "性能指标", "prompt": "What are the main performance metrics?", "description": "主要的性能评估指标"},
-    ],
-}
+FIXED_AUTO_COLUMNS = [
+    {"name": "Task", "prompt": "What is the main task or problem this paper addresses?", "description": "论文的主要任务"},
+    {"name": "Method", "prompt": "What is the main method or approach proposed in this paper?", "description": "论文提出的主要方法"},
+]
 
 
 def get_mock_papers(query: str, page: int = 1, page_size: int = 20) -> List[Paper]:
@@ -171,18 +153,7 @@ def get_mock_papers(query: str, page: int = 1, page_size: int = 20) -> List[Pape
 
 
 def get_suggested_columns(query: str) -> List[ColumnSuggestion]:
-    """根据查询生成推荐列"""
-    query_lower = query.lower()
-
-    if "memory" in query_lower or "显存" in query_lower:
-        columns_data = QUERY_COLUMN_MAPPING["memory"]
-    elif "model" in query_lower or "模型" in query_lower:
-        columns_data = QUERY_COLUMN_MAPPING["model"]
-    elif "attention" in query_lower or "注意力" in query_lower:
-        columns_data = QUERY_COLUMN_MAPPING["attention"]
-    else:
-        columns_data = QUERY_COLUMN_MAPPING["default"]
-
+    """返回固定的推荐列（Task + Method）"""
     return [
         ColumnSuggestion(
             id=f"col_auto_{i}",
@@ -190,7 +161,7 @@ def get_suggested_columns(query: str) -> List[ColumnSuggestion]:
             prompt=col["prompt"],
             description=col["description"],
         )
-        for i, col in enumerate(columns_data)
+        for i, col in enumerate(FIXED_AUTO_COLUMNS)
     ]
 
 
