@@ -1,0 +1,77 @@
+'use client'
+
+import SearchBar from '@/components/SearchBar'
+import MatrixTable from '@/components/MatrixTable'
+import { useMatrixStore } from '@/stores/useMatrixStore'
+import { useSearch } from '@/hooks/useSearch'
+
+export default function Home() {
+  const sessionId = useMatrixStore((s) => s.sessionId)
+  const papers = useMatrixStore((s) => s.papers)
+  const { doSearch } = useSearch()
+
+  return (
+    <main className="min-h-screen bg-[#f0f2f5]">
+      {/* Top bar */}
+      <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500">
+        <div className="max-w-[1600px] mx-auto px-4 py-4 sm:px-8 sm:py-6">
+          <div className="flex items-center gap-3 mb-3 sm:mb-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
+                Dynamic Literature Matrix
+              </h1>
+              <p className="text-blue-100 text-[11px] sm:text-xs hidden sm:block">
+                AI-powered academic paper search &amp; structured extraction
+              </p>
+            </div>
+          </div>
+          <SearchBar />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-[1600px] mx-auto px-3 py-4 sm:px-8 sm:py-6">
+        {/* Matrix Table */}
+        {sessionId && papers.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm ring-1 ring-black/5 p-3 sm:p-5">
+            <MatrixTable />
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!sessionId && (
+          <div className="mt-4 sm:mt-10 flex flex-col items-center text-center px-4">
+            <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center mb-5 sm:mb-6">
+              <svg className="w-10 h-10 sm:w-14 sm:h-14 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+              Explore Research Literature
+            </h3>
+            <p className="text-gray-400 text-sm max-w-lg leading-relaxed">
+              Enter your research question above. AI will search relevant papers,
+              extract key dimensions, and present them in a structured comparison matrix.
+            </p>
+            <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-2">
+              {['LLM memory optimization', 'attention mechanism', 'model architecture comparison'].map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => doSearch(tag)}
+                  className="px-3 py-1.5 bg-white rounded-full text-xs text-gray-500 shadow-sm ring-1 ring-gray-200/60 hover:ring-indigo-300 hover:text-indigo-600 hover:shadow-md active:scale-95 transition-all cursor-pointer"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  )
+}
