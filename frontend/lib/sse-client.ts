@@ -5,7 +5,7 @@
 export interface SSEOptions {
   onMessage?: (event: string, data: any) => void
   onError?: (error: Error) => void
-  onComplete?: () => void
+  onComplete?: (data?: any) => void
 }
 
 export class SSEClient {
@@ -97,8 +97,10 @@ export class SSEClient {
 
         if (done) {
           // 流结束，处理 buffer 中剩余的完整消息
+          // 追加空行确保最后一条 SSE 消息被派发
           if (buffer.trim()) {
-            this._processLines(buffer.split('\n'), currentEvent, currentData, options)
+            const lines = (buffer + '\n').split('\n')
+            this._processLines(lines, currentEvent, currentData, options)
           }
           break
         }
@@ -140,7 +142,7 @@ export class SSEClient {
             options.onMessage?.(currentEvent, parsed)
 
             if (currentEvent === 'complete') {
-              options.onComplete?.()
+              options.onComplete?.(parsed)
             }
           } catch {
             console.error('Failed to parse SSE data:', currentData)

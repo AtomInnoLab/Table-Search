@@ -1,6 +1,7 @@
 """搜索相关API路由"""
 import asyncio
 import json
+import logging
 import uuid
 from typing import AsyncGenerator
 from fastapi import APIRouter
@@ -8,10 +9,12 @@ from fastapi.responses import StreamingResponse
 from app.models.schemas import SearchRequest, SearchResponse
 from app.core.config import settings
 from app.mocks.mock_data import get_mock_papers, get_suggested_columns, FIXED_AUTO_COLUMNS
+from pydantic import BaseModel
 from app.services.paper_store import store_paper, clear_all as clear_paper_cache
 
-router = APIRouter()
+logger = logging.getLogger(__name__)
 
+router = APIRouter()
 
 def sse_event(event: str, data: str) -> str:
     """构造单条SSE消息，event+data合并在一次yield中"""
@@ -43,8 +46,11 @@ async def mock_search_stream(query: str, page: int, page_size: int) -> AsyncGene
 
 # ========== Wispaper 真实搜索 ==========
 
-async def wispaper_search_stream(query: str, page: int, page_size: int) -> AsyncGenerator[str, None]:
-    """代理到Wispaper API，将其SSE事件转换为我们的格式"""
+
+async def wispaper_search_stream(
+    query: str, page: int, page_size: int,
+) -> AsyncGenerator[str, None]:
+    """Stream papers in real-time as they arrive from upstream, with criteria filter."""
     import httpx
 
     clear_paper_cache()
@@ -53,7 +59,6 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
     yield sse_event("session", json.dumps({"session_id": session_id}))
 
     offset = (page - 1) * page_size
-
     body = {
         "message": query,
         "stream": False,
@@ -63,7 +68,6 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
         "limit": page_size,
         "x-billing": "search",
     }
-
     headers = {
         "accept": "text/event-stream",
         "content-type": "application/json",
@@ -71,8 +75,9 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
         "cache-control": "no-cache",
     }
 
-    paper_count = 0
     seen_ids: set[str] = set()
+    total = 0
+    total_searched = 0
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -86,10 +91,9 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
                     error_text = ""
                     async for chunk in response.aiter_text():
                         error_text += chunk
-                    yield sse_event("error", json.dumps({
-                        "message": f"Wispaper API error: {response.status_code}",
-                        "detail": error_text[:500],
-                    }))
+                    error_msg = f"Wispaper API error: {response.status_code} {error_text[:500]}"
+                    logger.warning(error_msg)
+                    yield sse_event("error", json.dumps({"message": error_msg}))
                     yield sse_event("complete", json.dumps({"total": 0, "query": query}))
                     return
 
@@ -104,7 +108,6 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
 
                         raw = msg[6:]
 
-                        # 跳过 [PENDING] / [DONE]
                         if raw.startswith("[PENDING]"):
                             continue
                         if raw.startswith("[DONE]"):
@@ -119,10 +122,15 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
                         name = event_data.get("name", "")
                         data = event_data.get("data", {})
 
-                        # 从 verification onAgentEnd 提取论文
                         if name == "verification" and event_type == "onAgentEnd":
                             meta = data.get("metadata")
                             if not meta or not meta.get("title"):
+                                continue
+
+                            total_searched += 1
+
+                            criteria = meta.get("criteria", [])
+                            if not criteria:
                                 continue
 
                             paper_id = meta.get("uuid") or meta.get("id") or str(uuid.uuid4())
@@ -152,12 +160,14 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
 
                             store_paper(paper_id, paper)
                             yield sse_event("paper", json.dumps(paper))
-                            paper_count += 1
+                            total += 1
 
     except httpx.TimeoutException:
-        yield sse_event("error", json.dumps({"message": "Search timeout"}))
+        logger.warning("Wispaper search timeout for '%s' (streamed %d papers)", query, total)
     except Exception as e:
-        yield sse_event("error", json.dumps({"message": f"Search error: {str(e)}"}))
+        logger.warning("Wispaper search error for '%s': %s (streamed %d papers)", query, e, total)
+
+    logger.info("Search '%s': searched %d, added %d papers", query, total_searched, total)
 
     # 发送固定推荐列（Task + Method）
     for i, col in enumerate(FIXED_AUTO_COLUMNS):
@@ -167,7 +177,7 @@ async def wispaper_search_stream(query: str, page: int, page_size: int) -> Async
             "prompt": col["prompt"],
         }))
 
-    yield sse_event("complete", json.dumps({"total": paper_count, "query": query}))
+    yield sse_event("complete", json.dumps({"total": total, "searched": total_searched, "query": query}))
 
 
 # ========== 路由 ==========
@@ -205,3 +215,30 @@ async def search(request: SearchRequest) -> SearchResponse:
         suggested_columns=suggested_columns,
         total=len(papers),
     )
+
+
+# ========== 恢复 paper cache ==========
+
+class RestoreRequest(BaseModel):
+    """恢复 paper cache 的请求"""
+    papers: list[dict]
+
+
+class RestoreResponse(BaseModel):
+    """恢复响应"""
+    session_id: str
+    restored: int
+
+
+@router.post("/papers/restore")
+async def restore_papers(request: RestoreRequest) -> RestoreResponse:
+    """恢复 paper cache，用于加载历史 project 后重建后端缓存。"""
+    session_id = str(uuid.uuid4())
+    count = 0
+    for paper in request.papers:
+        paper_id = paper.get("id")
+        if paper_id:
+            store_paper(paper_id, paper)
+            count += 1
+    logger.info("Restored %d papers into cache, session_id=%s", count, session_id)
+    return RestoreResponse(session_id=session_id, restored=count)

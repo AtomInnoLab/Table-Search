@@ -2,7 +2,16 @@
  * Matrix表格状态管理
  */
 import { create } from 'zustand'
-import type { Paper, Column, CellData } from '@/types'
+import type { Paper, Column, CellData, Project } from '@/types'
+
+interface HydrateData {
+  sessionId: string | null
+  query: string
+  papers: Paper[]
+  columns: Column[]
+  cells: [string, CellData][]
+  totalSearched: number
+}
 
 interface MatrixStore {
   // State
@@ -15,12 +24,16 @@ interface MatrixStore {
   isExtracting: boolean
   currentPage: number
   hasMore: boolean
+  newPaperIds: Set<string>
+  totalSearched: number
 
   // 搜索
   setSessionId: (id: string) => void
   initSearch: (query: string) => void
   addPaper: (paper: Paper) => void
+  clearNewPaperId: (id: string) => void
   setIsSearching: (v: boolean) => void
+  setTotalSearched: (n: number) => void
 
   // 列
   addColumn: (column: Column) => void
@@ -35,6 +48,9 @@ interface MatrixStore {
   // 分页
   incrementPage: () => void
   setHasMore: (v: boolean) => void
+
+  // 恢复
+  hydrateFromProject: (data: HydrateData) => void
 
   // 重置
   reset: () => void
@@ -52,6 +68,8 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
   isExtracting: false,
   currentPage: 1,
   hasMore: true,
+  newPaperIds: new Set(),
+  totalSearched: 0,
 
   setSessionId: (sessionId) => set({ sessionId }),
 
@@ -66,14 +84,41 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
       isExtracting: false,
       currentPage: 1,
       hasMore: true,
+      newPaperIds: new Set(),
+      totalSearched: 0,
     }),
 
   addPaper: (paper) =>
-    set((s) => ({
-      papers: [...s.papers, paper],
-    })),
+    set((s) => {
+      const score = paper.score ?? 0
+      const papers = [...s.papers]
+      // Binary search for descending score insertion
+      let lo = 0
+      let hi = papers.length
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1
+        if ((papers[mid].score ?? 0) >= score) {
+          lo = mid + 1
+        } else {
+          hi = mid
+        }
+      }
+      papers.splice(lo, 0, paper)
+      const newPaperIds = new Set(s.newPaperIds)
+      newPaperIds.add(paper.id)
+      return { papers, newPaperIds }
+    }),
+
+  clearNewPaperId: (id) =>
+    set((s) => {
+      const newPaperIds = new Set(s.newPaperIds)
+      newPaperIds.delete(id)
+      return { newPaperIds }
+    }),
 
   setIsSearching: (isSearching) => set({ isSearching }),
+
+  setTotalSearched: (totalSearched) => set({ totalSearched }),
 
   addColumn: (column) =>
     set((s) => ({
@@ -119,6 +164,21 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
 
   setHasMore: (hasMore) => set({ hasMore }),
 
+  hydrateFromProject: (data) =>
+    set({
+      sessionId: data.sessionId,
+      query: data.query,
+      papers: data.papers,
+      columns: data.columns,
+      cells: new Map(data.cells),
+      totalSearched: data.totalSearched,
+      isSearching: false,
+      isExtracting: false,
+      currentPage: 1,
+      hasMore: true,
+      newPaperIds: new Set(),
+    }),
+
   reset: () =>
     set({
       sessionId: null,
@@ -130,5 +190,7 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
       isExtracting: false,
       currentPage: 1,
       hasMore: true,
+      newPaperIds: new Set(),
+      totalSearched: 0,
     }),
 }))

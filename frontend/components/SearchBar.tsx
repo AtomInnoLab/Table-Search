@@ -1,17 +1,58 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { useMatrixStore } from '@/stores/useMatrixStore'
 import { useSearch } from '@/hooks/useSearch'
 
-export default function SearchBar() {
+export interface SearchBarHandle {
+  typewrite: (text: string) => void
+}
+
+const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
   const [inputValue, setInputValue] = useState('')
   const query = useMatrixStore((s) => s.query)
   const sessionId = useMatrixStore((s) => s.sessionId)
   const { doSearch, isSearching } = useSearch()
+  const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync inputValue when query changes externally (e.g. loading a project)
+  useEffect(() => {
+    if (query && !typingRef.current) {
+      setInputValue(query)
+    }
+  }, [query])
+
+  useEffect(() => {
+    return () => {
+      if (typingRef.current) clearTimeout(typingRef.current)
+    }
+  }, [])
+
+  const typewrite = useCallback((text: string) => {
+    if (typingRef.current) clearTimeout(typingRef.current)
+    setInputValue('')
+    let i = 0
+    const tick = () => {
+      i++
+      setInputValue(text.slice(0, i))
+      if (i < text.length) {
+        typingRef.current = setTimeout(tick, 30 + Math.random() * 40)
+      } else {
+        typingRef.current = null
+        doSearch(text)
+      }
+    }
+    typingRef.current = setTimeout(tick, 100)
+  }, [doSearch])
+
+  useImperativeHandle(ref, () => ({ typewrite }), [typewrite])
 
   const handleSearch = () => {
     if (inputValue.trim() && !isSearching) {
+      if (typingRef.current) {
+        clearTimeout(typingRef.current)
+        typingRef.current = null
+      }
       doSearch(inputValue.trim())
     }
   }
@@ -73,4 +114,6 @@ export default function SearchBar() {
       )}
     </div>
   )
-}
+})
+
+export default SearchBar

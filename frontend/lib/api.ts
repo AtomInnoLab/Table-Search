@@ -19,3 +19,7 @@ export const extractApi = {
   batch: () => getApiUrl('/extract/batch'),
   column: () => getApiUrl('/extract/column'),
 }
+
+export const paperApi = {
+  restore: () => getApiUrl('/papers/restore'),
+}

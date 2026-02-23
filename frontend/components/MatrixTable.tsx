@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, memo, useCallback, useState } from 'react'
+import { useMemo, memo, useCallback, useState, useEffect, useRef } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -26,6 +26,35 @@ export default function MatrixTable() {
   const columns = useMatrixStore((s) => s.columns)
   const isExtracting = useMatrixStore((s) => s.isExtracting)
   const cells = useMatrixStore((s) => s.cells)
+  const newPaperIds = useMatrixStore((s) => s.newPaperIds)
+  const clearNewPaperId = useMatrixStore((s) => s.clearNewPaperId)
+  const totalSearched = useMatrixStore((s) => s.totalSearched)
+
+  // Notification counter for newly added papers
+  const [notifyCount, setNotifyCount] = useState(0)
+  const [showNotify, setShowNotify] = useState(false)
+  const prevNewSizeRef = useRef(0)
+
+  useEffect(() => {
+    const currentSize = newPaperIds.size
+    // Only react to increases (new papers added), ignore decreases (animation cleanup)
+    if (currentSize > prevNewSizeRef.current) {
+      const delta = currentSize - prevNewSizeRef.current
+      setNotifyCount((c) => c + delta)
+      setShowNotify(true)
+    }
+    prevNewSizeRef.current = currentSize
+  }, [newPaperIds.size])
+
+  // Auto-fade notification after 3s of no new papers
+  useEffect(() => {
+    if (!showNotify) return
+    const timer = setTimeout(() => {
+      setShowNotify(false)
+      setNotifyCount(0)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [showNotify, notifyCount])
 
   const getCellData = useCallback(
     (paperId: string, columnId: string): CellData | undefined =>
@@ -60,14 +89,26 @@ export default function MatrixTable() {
         </div>
       )}
 
+      {/* Notification badge */}
+      {showNotify && notifyCount > 0 && (
+        <div className="mb-3 flex justify-end">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-xs font-medium shadow-sm animate-row-highlight">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            {notifyCount} new {notifyCount === 1 ? 'paper' : 'papers'} screened
+          </span>
+        </div>
+      )}
+
       {/* Desktop: Table */}
       <div className="hidden md:block">
-        <DesktopTable papers={papers} columns={columns} getCellData={getCellData} />
+        <DesktopTable papers={papers} columns={columns} getCellData={getCellData} newPaperIds={newPaperIds} clearNewPaperId={clearNewPaperId} />
       </div>
 
       {/* Mobile: Cards */}
       <div className="block md:hidden">
-        <MobileCards papers={papers} columns={columns} getCellData={getCellData} />
+        <MobileCards papers={papers} columns={columns} getCellData={getCellData} newPaperIds={newPaperIds} clearNewPaperId={clearNewPaperId} />
       </div>
 
       {/* Load more */}
@@ -75,9 +116,18 @@ export default function MatrixTable() {
 
       {/* Stats */}
       <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+        {totalSearched > 0 && (
+          <>
+            <span className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              {totalSearched} 篇论文已搜索
+            </span>
+            <span className="w-1 h-1 rounded-full bg-gray-300" />
+          </>
+        )}
         <span className="flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          {papers.length} papers
+          {papers.length} 篇论文已添加
         </span>
         <span className="w-1 h-1 rounded-full bg-gray-300" />
         <span className="flex items-center gap-1">
@@ -92,11 +142,13 @@ export default function MatrixTable() {
 // ========== Desktop Table ==========
 
 function DesktopTable({
-  papers, columns, getCellData,
+  papers, columns, getCellData, newPaperIds, clearNewPaperId,
 }: {
   papers: Paper[]
   columns: Column[]
   getCellData: (paperId: string, columnId: string) => CellData | undefined
+  newPaperIds: Set<string>
+  clearNewPaperId: (id: string) => void
 }) {
   const tableColumns = useMemo<ColumnDef<TableRow, any>[]>(() => {
     const fixed: ColumnDef<TableRow, any>[] = [
@@ -204,8 +256,13 @@ function DesktopTable({
         <tbody>
           {table.getRowModel().rows.map((row, i) => {
             const rowBg = i % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+            const isNew = newPaperIds.has(row.id)
             return (
-              <tr key={row.id} className={`group transition-colors hover:bg-blue-50/50 ${rowBg}`}>
+              <tr
+                key={row.id}
+                className={`group transition-colors hover:bg-blue-50/50 ${rowBg} ${isNew ? 'animate-row-highlight' : ''}`}
+                onAnimationEnd={() => clearNewPaperId(row.id)}
+              >
                 {row.getVisibleCells().map((cell) => {
                   const meta = cell.column.columnDef.meta as any
                   const frozen = meta?.frozen
@@ -241,11 +298,13 @@ function DesktopTable({
 // ========== Mobile Cards ==========
 
 function MobileCards({
-  papers, columns, getCellData,
+  papers, columns, getCellData, newPaperIds, clearNewPaperId,
 }: {
   papers: Paper[]
   columns: Column[]
   getCellData: (paperId: string, columnId: string) => CellData | undefined
+  newPaperIds: Set<string>
+  clearNewPaperId: (id: string) => void
 }) {
   return (
     <div className="space-y-2.5">
@@ -266,6 +325,8 @@ function MobileCards({
           columns={columns}
           getCellData={getCellData}
           index={i}
+          isNew={newPaperIds.has(paper.id)}
+          clearNewPaperId={clearNewPaperId}
         />
       ))}
     </div>
@@ -273,20 +334,25 @@ function MobileCards({
 }
 
 const MobileCard = memo(function MobileCard({
-  paper, columns, getCellData, index,
+  paper, columns, getCellData, index, isNew, clearNewPaperId,
 }: {
   paper: Paper
   columns: Column[]
   getCellData: (paperId: string, columnId: string) => CellData | undefined
   index: number
+  isNew: boolean
+  clearNewPaperId: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const hasData = columns.length > 0
 
   return (
-    <div className={`rounded-xl overflow-hidden transition-shadow ${
-      expanded ? 'shadow-md ring-1 ring-indigo-200' : 'shadow-sm ring-1 ring-gray-200/80'
-    }`}>
+    <div
+      className={`rounded-xl overflow-hidden transition-shadow ${
+        expanded ? 'shadow-md ring-1 ring-indigo-200' : 'shadow-sm ring-1 ring-gray-200/80'
+      } ${isNew ? 'animate-row-highlight' : ''}`}
+      onAnimationEnd={() => clearNewPaperId(paper.id)}
+    >
       {/* Header */}
       <button
         className={`w-full text-left px-4 py-3 bg-white active:bg-gray-50 transition-colors`}

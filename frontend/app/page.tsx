@@ -1,14 +1,47 @@
 'use client'
 
+import { useRef, useEffect, useCallback } from 'react'
 import SearchBar from '@/components/SearchBar'
+import type { SearchBarHandle } from '@/components/SearchBar'
 import MatrixTable from '@/components/MatrixTable'
+import ProjectPanel from '@/components/ProjectPanel'
 import { useMatrixStore } from '@/stores/useMatrixStore'
-import { useSearch } from '@/hooks/useSearch'
+import { useProjectStore } from '@/stores/useProjectStore'
 
 export default function Home() {
   const sessionId = useMatrixStore((s) => s.sessionId)
   const papers = useMatrixStore((s) => s.papers)
-  const { doSearch } = useSearch()
+  const isSearching = useMatrixStore((s) => s.isSearching)
+  const isExtracting = useMatrixStore((s) => s.isExtracting)
+  const activeProjectId = useProjectStore((s) => s.activeProjectId)
+  const saveCurrentAsProject = useProjectStore((s) => s.saveCurrentAsProject)
+  const setActiveProjectId = useProjectStore((s) => s.setActiveProjectId)
+  const searchBarRef = useRef<SearchBarHandle>(null)
+
+  // Auto-save: when search/extraction finishes and we have data
+  const prevBusyRef = useRef(false)
+  useEffect(() => {
+    const wasBusy = prevBusyRef.current
+    const isBusy = isSearching || isExtracting
+    prevBusyRef.current = isBusy
+
+    if (wasBusy && !isBusy && papers.length > 0) {
+      // Search or extraction just finished — auto-save
+      saveCurrentAsProject()
+    }
+  }, [isSearching, isExtracting, papers.length, saveCurrentAsProject])
+
+  // When user starts a new search, clear active project so a new one is created
+  const query = useMatrixStore((s) => s.query)
+  const prevQueryRef = useRef(query)
+  useEffect(() => {
+    if (query && query !== prevQueryRef.current) {
+      setActiveProjectId(null)
+    }
+    prevQueryRef.current = query
+  }, [query, setActiveProjectId])
+
+  const hasResults = sessionId && papers.length > 0
 
   return (
     <main className="min-h-screen bg-[#f0f2f5]">
@@ -30,21 +63,21 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <SearchBar />
+          <SearchBar ref={searchBarRef} />
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-[1600px] mx-auto px-3 py-4 sm:px-8 sm:py-6">
         {/* Matrix Table */}
-        {sessionId && papers.length > 0 && (
+        {hasResults && (
           <div className="bg-white rounded-xl shadow-sm ring-1 ring-black/5 p-3 sm:p-5">
             <MatrixTable />
           </div>
         )}
 
         {/* Empty State */}
-        {!sessionId && (
+        {!hasResults && (
           <div className="mt-4 sm:mt-10 flex flex-col items-center text-center px-4">
             <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center mb-5 sm:mb-6">
               <svg className="w-10 h-10 sm:w-14 sm:h-14 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -62,12 +95,17 @@ export default function Home() {
               {['LLM memory optimization', 'attention mechanism', 'model architecture comparison'].map((tag) => (
                 <button
                   key={tag}
-                  onClick={() => doSearch(tag)}
+                  onClick={() => searchBarRef.current?.typewrite(tag)}
                   className="px-3 py-1.5 bg-white rounded-full text-xs text-gray-500 shadow-sm ring-1 ring-gray-200/60 hover:ring-indigo-300 hover:text-indigo-600 hover:shadow-md active:scale-95 transition-all cursor-pointer"
                 >
                   {tag}
                 </button>
               ))}
+            </div>
+
+            {/* Recent Projects */}
+            <div className="mt-8 sm:mt-10 w-full max-w-2xl">
+              <ProjectPanel />
             </div>
           </div>
         )}

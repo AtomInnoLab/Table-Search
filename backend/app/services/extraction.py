@@ -104,7 +104,7 @@ async def extract_cell_with_llm(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.1,
-            max_tokens=512,
+            max_tokens=1024,
         )
     except AuthenticationError as e:
         logger.error("LLM authentication failed: %s", e)
@@ -156,12 +156,15 @@ async def extract_cell_with_llm(
         }
 
     except json.JSONDecodeError:
-        logger.error(
-            "Failed to parse LLM response as JSON for paper: %s, raw: %s",
-            paper_data.get("title"),
-            content,
-        )
-        return None
+        result = _repair_truncated_json(content, paper_data.get("title", "Unknown"))
+        if result is None:
+            return None
+        if result.get("value") is None:
+            return None
+        return {
+            "value": str(result["value"]),
+            "evidence_text": result.get("evidence") or "",
+        }
 
 
 # ========== Sync extraction for thread pool ==========
@@ -214,8 +217,9 @@ def _parse_llm_content(content: Optional[str], title: str) -> Optional[dict]:
     try:
         result = json.loads(content)
     except json.JSONDecodeError:
-        logger.error("Failed to parse LLM JSON for paper: %s, raw: %s", title, content)
-        return None
+        result = _repair_truncated_json(content, title)
+        if result is None:
+            return None
 
     if result.get("value") is None:
         return None
@@ -224,6 +228,29 @@ def _parse_llm_content(content: Optional[str], title: str) -> Optional[dict]:
         "value": str(result["value"]),
         "evidence_text": result.get("evidence") or "",
     }
+
+
+def _repair_truncated_json(raw: str, title: str) -> Optional[dict]:
+    """Attempt to repair truncated JSON from LLM output.
+
+    Args:
+        raw: The raw truncated JSON string.
+        title: Paper title for logging.
+
+    Returns:
+        Parsed dict if repair succeeded, None otherwise.
+    """
+    # Try to extract value field even from truncated JSON
+    m = re.search(r'"value"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+    if m:
+        value = m.group(1)
+        evidence_m = re.search(r'"evidence"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+        evidence = evidence_m.group(1) if evidence_m else ""
+        logger.info("Repaired truncated JSON for paper: %s", title)
+        return {"value": value, "evidence": evidence}
+
+    logger.error("Failed to parse LLM JSON for paper: %s, raw: %s", title, raw)
+    return None
 
 
 def extract_cell_sync(paper_data: dict, column_prompt: str) -> Optional[dict]:
@@ -250,7 +277,7 @@ def extract_cell_sync(paper_data: dict, column_prompt: str) -> Optional[dict]:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.1,
-            max_tokens=512,
+            max_tokens=1024,
         )
     except AuthenticationError as e:
         logger.error("LLM authentication failed: %s", e)

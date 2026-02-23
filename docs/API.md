@@ -55,8 +55,8 @@ Simple health check.
 ### `POST /api/v1/search/stream`
 
 Search papers with SSE streaming. Supports two backends:
-- **Mock mode** (`USE_MOCK_SEARCH=true`): Returns predefined paper data
-- **Wispaper mode** (`USE_MOCK_SEARCH=false`): Proxies to Wispaper API
+- **Mock mode** (`USE_MOCK_SEARCH=true`): Returns predefined paper data with suggested columns
+- **Real mode** (`USE_MOCK_SEARCH=false`): Proxies to Wispaper Search API (returns papers + suggested columns)
 
 **Request Body**:
 ```json
@@ -102,15 +102,8 @@ data: {
 }
 ```
 
-When using Wispaper backend, additional fields may be present:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `url` | string | Paper webpage URL |
-| `doi` | string | Digital Object Identifier |
-| `venue` | string | Publication venue |
-| `citations` | int | Citation count |
-| `score` | float | Relevance score from search |
+In Mock mode, all fields are populated from predefined data.
+In Real mode, fields are populated from Wispaper search results (some may be null).
 
 #### Event: `column`
 
@@ -126,7 +119,7 @@ data: {
 }
 ```
 
-Column suggestions are determined by query keywords:
+Column suggestions in Mock mode are determined by query keywords:
 
 | Keywords | Suggested Columns |
 |----------|-------------------|
@@ -347,8 +340,8 @@ Backend configuration is managed via environment variables (`.env` file in `back
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
 | `USE_MOCK_SEARCH` | `true` | Use mock data for search |
 | `USE_MOCK_EXTRACTION` | `true` | Use mock data for extraction |
-| `WISPAPER_API_URL` | (see config) | Wispaper search API endpoint |
-| `WISPAPER_AUTH_TOKEN` | `""` | Wispaper Bearer token |
+| `WISPAPER_API_URL` | `https://gateway.dev.wispaper.ai/api/v1/search/completions` | Wispaper Search API endpoint |
+| `WISPAPER_AUTH_TOKEN` | `""` | Wispaper Bearer token (JWT) |
 | `MINIMAX_API_KEY` | `""` | MiniMax LLM API key |
 | `MINIMAX_BASE_URL` | `https://api.minimax.chat/v1` | MiniMax API base URL |
 | `MINIMAX_MODEL` | `MiniMax-M2.5` | Model name for extraction |
@@ -362,7 +355,7 @@ To use real search and extraction:
 # backend/.env
 USE_MOCK_SEARCH=false
 USE_MOCK_EXTRACTION=false
-WISPAPER_AUTH_TOKEN=your-token-here
+WISPAPER_AUTH_TOKEN=your-jwt-token
 MINIMAX_API_KEY=your-key-here
 ```
 
@@ -457,7 +450,7 @@ When using real LLM extraction, cells may fail individually:
 
 ## Upstream API: Wispaper Search
 
-When `USE_MOCK_SEARCH=false`, the backend proxies search requests to [Wispaper](https://gateway.dev.wispaper.ai) and transforms the upstream SSE events into our own format.
+When `USE_MOCK_SEARCH=false`, the backend proxies search requests to the [Wispaper](https://gateway.dev.wispaper.ai) Search API. This API searches academic papers across multiple sources, verifies relevance, and suggests analysis dimensions.
 
 ### Upstream Endpoint
 
@@ -482,12 +475,12 @@ POST https://gateway.dev.wispaper.ai/api/v1/search/completions
 | Field | Type | Description |
 |-------|------|-------------|
 | `message` | string | Search query (maps from our `query` field) |
-| `stream` | bool | Always `false` (we handle SSE ourselves) |
-| `search_scholar` | bool | Enable academic paper search |
-| `slow_search` | bool | Enable deeper search for better results |
-| `offset` | int | Pagination offset: `(page - 1) * page_size` |
-| `limit` | int | Max results (maps from our `page_size`) |
-| `x-billing` | string | Billing tag, always `"search"` |
+| `stream` | bool | Always `false` (backend still reads SSE stream via `accept: text/event-stream`) |
+| `search_scholar` | bool | Search external scholar databases |
+| `slow_search` | bool | Enable deeper, slower search |
+| `offset` | int | Pagination offset (`(page - 1) * page_size`) |
+| `limit` | int | Results per page |
+| `x-billing` | string | Always `"search"` |
 
 ### Request Headers
 
@@ -500,14 +493,20 @@ Cache-Control: no-cache
 
 ### Upstream SSE Response
 
-Wispaper returns `data:` lines (no `event:` field). Special markers:
+The API returns `data:` lines (no `event:` field). Special markers:
 
 | Marker | Meaning |
 |--------|---------|
-| `data: [PENDING]` | Search in progress, skipped |
-| `data: [DONE]` | Stream finished |
+| `data: [PENDING]:{"uuid":...}` | Pipeline started, skipped |
+| `data: [DONE]:{"uuid":...}` | Stream finished |
 
-Each `data:` payload is a JSON object with:
+Each data line contains a JSON object with `event`, `name`, and `data` fields.
+
+### Event Mapping Logic
+
+The backend extracts two types of upstream events:
+
+**1. Papers** — from `verification` + `onAgentEnd`:
 
 ```json
 {
@@ -516,44 +515,38 @@ Each `data:` payload is a JSON object with:
   "data": {
     "metadata": {
       "uuid": "paper-uuid",
-      "title": "Paper Title",
-      "authors": "Author1, Author2",
-      "year": 2024,
-      "abstract": "...",
-      "url": "https://...",
-      "pdf_url": "https://...",
-      "doi": "10.xxx/yyy",
-      "venue": "Conference Name",
-      "citations": 42,
-      "final_score": 0.85
+      "title": "Attention Is All You Need",
+      "year": 2017,
+      "authors": "Ashish Vaswani, Noam Shazeer, ...",
+      "abstract": "The dominant sequence transduction models...",
+      "url": "https://arxiv.org/abs/1706.03762",
+      "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
+      "doi": "10.48550/arXiv.1706.03762",
+      "venue": "NeurIPS 2017",
+      "citations": 100000,
+      "final_score": 0.95
     }
   }
 }
 ```
 
-### Event Mapping Logic
+Each verified paper becomes a `paper` event sent to the frontend. Fields:
 
-The backend extracts two types of upstream events:
-
-**1. Paper extraction** — from `verification` + `onAgentEnd` events:
-
-| Upstream field (`data.metadata.*`) | Our field | Notes |
-|------------------------------------|-----------|-------|
-| `uuid` / `id` | `id` | Falls back to random UUID |
+| Upstream field | Our field | Notes |
+|----------------|-----------|-------|
+| `uuid` / `id` | `id` | Paper identifier |
 | `title` | `title` | |
-| `authors` | `authors` | Comma-separated string → array, capped at 10 |
-| `year` | `year` | |
-| `abstract` | `abstract` | |
-| `url` | `url` | |
-| `pdf_url` | `pdf_url` | |
-| `doi` | `doi` | |
-| `venue` | `venue` | |
-| `citations` | `citations` | |
-| `final_score` | `score` | Relevance score (0–1) |
+| `year` | `year` | Publication year |
+| `authors` | `authors` | Comma-separated string → array (max 10) |
+| `abstract` | `abstract` | Used as LLM context for extraction |
+| `url` | `url` | Paper URL |
+| `pdf_url` | `pdf_url` | PDF link |
+| `doi` | `doi` | DOI identifier |
+| `venue` | `venue` | Publication venue |
+| `citations` | `citations` | Citation count |
+| `final_score` | `score` | Relevance score |
 
-Duplicate papers (same `uuid`) are deduplicated via `seen_ids` set.
-
-**2. Suggested columns** — from `search_verify_agent` + `onAgentEnd` events:
+**2. Suggested columns** — from `search_verify_agent` + `onAgentEnd`:
 
 ```json
 {
@@ -563,7 +556,9 @@ Duplicate papers (same `uuid`) are deduplicated via `seen_ids` set.
     "content": {
       "metadata": {
         "criteria": [
-          {"name": "Dimension Name", "description": "Extraction prompt"}
+          {"name": "Model Architecture", "description": "What is the model architecture?"},
+          {"name": "Parameters", "description": "How many parameters does the model have?"},
+          {"name": "Training Data", "description": "What dataset is used for training?"}
         ]
       }
     }
@@ -571,13 +566,7 @@ Duplicate papers (same `uuid`) are deduplicated via `seen_ids` set.
 }
 ```
 
-Each criterion becomes a suggested column:
-
-| Criterion field | Column field |
-|-----------------|-------------|
-| `name` | `name` |
-| `description` (or `name` as fallback) | `prompt` |
-| Auto-generated `col_auto_{i}` | `id` |
+Each criterion becomes a `column` event with `id`, `name`, and `prompt` fields. These are the auto-generated analysis dimensions.
 
 ### Wispaper Auth Token
 
@@ -588,7 +577,7 @@ The token is a JWT issued by `https://auth.dev.wispaper.ai/oidc`. It has an expi
 | Scenario | Behavior |
 |----------|----------|
 | HTTP status != 200 | Emits `error` event with status code and first 500 chars of response body |
-| `httpx.TimeoutException` | Emits `error` event: `"Search timeout"` |
+| `httpx.TimeoutException` | Emits `error` event: `"Search timeout"` (timeout: 120s) |
 | Other exceptions | Emits `error` event with exception message |
 | All error cases | Followed by `complete` event with `total: 0` or actual paper count |
 
@@ -770,7 +759,7 @@ Frontend                          Backend
    │                                ├─ Emit: complete
    │<───────────────────────────────┤
    │                                │
-   ├─POST /extract/batch────────────>│
+   ├─POST /extract/batch────────────>│  ← auto-triggered for all columns
    │                                ├─ Emit: cell_update (loading)
    │<───────────────────────────────┤
    │                                ├─ Emit: cell_update (completed/na)

@@ -8,7 +8,7 @@
 import { useRef, useCallback } from 'react'
 import { useMatrixStore } from '@/stores/useMatrixStore'
 import { SSEClient } from '@/lib/sse-client'
-import { searchApi, extractApi } from '@/lib/api'
+import { searchApi, extractApi, paperApi } from '@/lib/api'
 import type { Paper, Column, ColumnSuggestion } from '@/types'
 
 export function useSearch() {
@@ -23,6 +23,7 @@ export function useSearch() {
     setIsExtracting,
     updateCell,
     setHasMore,
+    setTotalSearched,
   } = useMatrixStore()
 
   const searchClientRef = useRef<SSEClient | null>(null)
@@ -112,11 +113,13 @@ export function useSearch() {
             columnIds.push(col.id)
           }
         },
-        onComplete: () => {
+        onComplete: (data) => {
           setIsSearching(false)
-          // 如果首页就没拿到数据，说明没有更多了
+          if (data?.searched) setTotalSearched(data.searched)
           if (paperIds.length === 0) setHasMore(false)
-          startExtraction(newSessionId, paperIds, columnIds)
+          // Use sorted order from store, not SSE arrival order
+          const sortedPaperIds = useMatrixStore.getState().papers.map((p) => p.id)
+          startExtraction(newSessionId, sortedPaperIds, columnIds)
         },
         onError: (err) => {
           console.error('Search SSE error:', err)
@@ -192,9 +195,12 @@ export function useSearch() {
             setHasMore(false)
             return
           }
-          // 回填：新论文 x 所有已有列
+          // 回填：用 store 中排序后的新论文 ID
+          const sortedNewIds = useMatrixStore.getState().papers
+            .filter((p) => newPaperIds.includes(p.id))
+            .map((p) => p.id)
           if (existingColumnIds.length > 0) {
-            startExtraction(state.sessionId!, newPaperIds, existingColumnIds)
+            startExtraction(state.sessionId!, sortedNewIds, existingColumnIds)
           }
         },
         onError: (err) => {
@@ -206,5 +212,26 @@ export function useSearch() {
     [addPaper, setIsSearching, setHasMore, startExtraction],
   )
 
-  return { doSearch, extractColumn, loadMore, abortAll, isSearching, isExtracting }
+  // ---------- 恢复后端 paper cache ----------
+
+  const restoreSession = useCallback(
+    async (papers: Paper[]): Promise<string | null> => {
+      try {
+        const res = await fetch(paperApi.restore(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ papers }),
+        })
+        if (!res.ok) return null
+        const data = await res.json()
+        return data.session_id || null
+      } catch (err) {
+        console.error('Restore session error:', err)
+        return null
+      }
+    },
+    [],
+  )
+
+  return { doSearch, extractColumn, loadMore, abortAll, restoreSession, isSearching, isExtracting }
 }

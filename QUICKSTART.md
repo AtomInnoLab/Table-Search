@@ -67,10 +67,9 @@ npm run dev
 
 3. **观察搜索结果**:
    - 论文逐条流式加载到表格
-   - 自动生成3个推荐列（根据查询关键词）
-   - 单元格逐个填充数据（Loading → 完成/N/A）
+   - 自动生成3个推荐列（AUTO标签），单元格逐个填充
 
-4. **添加自定义列**: 点击表格右上角 `+` 按钮，输入提取指令（如 "training dataset"），自动提取所有论文
+4. **添加列**: 点击表格右上角 `+` 按钮，输入提取指令（如 "main method"、"training dataset"），系统会用 LLM 自动提取所有论文
 
 5. **管理列**: 右键点击列头，可编辑定义或删除列
 
@@ -96,7 +95,7 @@ npm run dev
 编辑 `backend/.env`：
 
 ```bash
-# === 搜索配置：Wispaper API ===
+# === 搜索配置：Wispaper Search API ===
 USE_MOCK_SEARCH=false
 WISPAPER_API_URL=https://gateway.dev.wispaper.ai/api/v1/search/completions
 WISPAPER_AUTH_TOKEN=<JWT token>
@@ -109,12 +108,14 @@ MINIMAX_MODEL=MiniMax-M2.5
 
 重启后端即可生效。
 
-### Wispaper 搜索API
+### Wispaper Search API
 
 - **上游地址**: `https://gateway.dev.wispaper.ai/api/v1/search/completions`
 - **认证方式**: JWT Bearer Token（从 Wispaper 认证服务获取）
-- **返回格式**: SSE 事件流，包含论文元数据（标题、摘要、作者、年份、DOI、引用数等）
-- **注意事项**: JWT 有过期时间（`exp` 字段），过期后需重新获取
+- **返回数据**: 论文元数据（title, authors, year, abstract 等）+ 推荐分析维度（auto columns）
+- **注意事项**:
+  - JWT 有过期时间（`exp` 字段），过期后需重新获取
+  - 搜索结果包含完整论文元数据和推荐列
 
 验证 Token 是否有效：
 
@@ -123,6 +124,7 @@ curl -X POST 'https://gateway.dev.wispaper.ai/api/v1/search/completions' \
   -H 'accept: text/event-stream' \
   -H 'content-type: application/json' \
   -H 'authorization: Bearer <WISPAPER_AUTH_TOKEN>' \
+  -H 'cache-control: no-cache' \
   -d '{"message":"test","stream":false,"search_scholar":true,"slow_search":true,"offset":0,"limit":5,"x-billing":"search"}'
 ```
 
@@ -147,11 +149,15 @@ curl -X POST 'https://api.minimax.chat/v1/chat/completions' \
 ```
 用户输入查询
     ↓
-后端 → Wispaper API（SSE搜索）→ 返回论文列表
+后端 → Wispaper Search API（SSE 流式搜索 + 验证）
     ↓
-论文存入内存缓存（paper_store）
+verification agent 逐篇返回论文元数据 → 立即发送给前端
     ↓
-后端 → MiniMax LLM（逐单元格抽取）→ 返回结构化数据
+search_verify_agent 返回推荐分析维度 → 作为 auto columns 发送给前端
+    ↓
+前端自动触发批量抽取
+    ↓
+后端 → MiniMax LLM（逐单元格抽取，使用论文 abstract）→ 返回结构化数据
     ↓
 前端表格逐步填充
 ```

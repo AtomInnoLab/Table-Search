@@ -43,6 +43,20 @@ body {
   background: #555;
 }
 
+/* Row highlight animation for newly inserted papers */
+@keyframes row-highlight {
+  0% {
+    background-color: rgb(254 249 195); /* yellow-100 */
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-row-highlight {
+  animation: row-highlight 2s ease-out forwards;
+}
+
 /* Loading动画 */
 @keyframes shimmer {
   0% {

@@ -11,6 +11,7 @@ export interface Paper {
   year: number;
   abstract: string;
   pdf_url?: string;
+  score?: number;
 }
 
 // ============ Column相关类型 ============
@@ -78,4 +79,28 @@ export interface ExtractColumnRequest {
   session_id: string;
   column_id: string;
   paper_ids: string[];
+}
+
+// ============ Project相关类型 ============
+
+export interface Project {
+  id: string;
+  name: string;
+  query: string;
+  sessionId: string | null;
+  papers: Paper[];
+  columns: Column[];
+  cells: [string, CellData][];
+  totalSearched: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  query: string;
+  paperCount: number;
+  columnCount: number;
+  updatedAt: number;
 }
