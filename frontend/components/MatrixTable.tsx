@@ -448,13 +448,12 @@ const CellRenderer = memo(function CellRenderer({ cellData }: { cellData?: CellD
       )
     case 'completed':
       return (
-        <div>
-          <div className="text-gray-800 leading-relaxed">{cellData.value}</div>
-          {cellData.evidence && (
-            <span className="inline-flex items-center gap-0.5 mt-1 text-[10px] text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded">
-              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-              p.{cellData.evidence.page}
-            </span>
+        <div className="group/cell relative max-w-[180px]">
+          <div className="text-gray-800 leading-snug text-xs line-clamp-2 cursor-default">{cellData.value}</div>
+          {cellData.value && cellData.value.length > 30 && (
+            <div className="invisible group-hover/cell:visible absolute z-50 left-0 bottom-full mb-1.5 w-64 max-h-48 overflow-y-auto p-2.5 bg-gray-900 text-white text-xs leading-relaxed rounded-lg shadow-xl pointer-events-none">
+              {cellData.value}
+            </div>
           )}
         </div>
       )
