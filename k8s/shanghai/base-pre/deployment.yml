@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mytestapp-pre
+  name: table-search-pre
   namespace: shpre
 spec:
   progressDeadlineSeconds: 600
@@ -9,7 +9,7 @@ spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: mytestapp-pre
+      app: table-search-pre
       version: v1
   strategy:
     rollingUpdate:
@@ -20,21 +20,21 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
-        app: mytestapp-pre
+        app: table-search-pre
         version: v1
     spec:
       imagePullSecrets:
         - name: registry-ali-hangzhou
       containers:
         - image: >-
-            crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/atom-pre/mytestapp-pre:20251027184459
+            crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/atom-pre/table-search-pre:20251027184459
           imagePullPolicy: IfNotPresent
           env:
             - name: NACOS_ENABLE
               value: "true"
             - name: APP_PROFILE
               value: pre
-            - name: aliyun_logs_mytestapp-pre
+            - name: aliyun_logs_table-search-pre
               value: stdout
             - name: ENVIRONMENT
               value: pre
@@ -52,7 +52,7 @@ spec:
             tcpSocket:
               port: 8080
             timeoutSeconds: 5
-          name: mytestapp-pre
+          name: table-search-pre
           ports:
             - containerPort: 8080
               protocol: TCP

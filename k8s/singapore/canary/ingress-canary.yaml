@@ -14,7 +14,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: mytestapp.wispaper.inner
+    - host: table-search.wispaper.inner
       http:
         paths:
           - path: /

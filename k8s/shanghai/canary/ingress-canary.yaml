@@ -9,22 +9,22 @@ metadata:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80},{"HTTPS": 443}]'
   labels:
     ingress-controller: alb
-  name: mytestapp-prod-ingress-canary
+  name: table-search-prod-ingress-canary
   namespace: shprod
 spec:
   ingressClassName: alb
   rules:
-    - host: mytestapp.qiewenpaper.com
+    - host: table-search.qiewenpaper.com
       http:
         paths:
           - backend:
               service:
-                name: mytestapp-prod-service-canary
+                name: table-search-prod-service-canary
                 port:
                   number: 8080
             path: /
             pathType: Prefix
   tls:
     - hosts:
-        - mytestapp.qiewenpaper.com
+        - table-search.qiewenpaper.com
       secretName: tls-qiewenpaper.com
