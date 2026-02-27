@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mytestapp-prod
+  namespace: shprod
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: mytestapp-prod
+      version: v1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: mytestapp-prod
+        version: v1
+    spec:
+      imagePullSecrets:
+        - name: registry-ali-hangzhou
+      containers:
+        - image: crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/mxrag/mytestapp-prod:20251203141823
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NACOS_ENABLE
+              value: 'true'
+            - name: APP_PROFILE
+              value: prod
+            - name: aliyun_logs_mytestapp-prod
+              value: stdout
+            - name: ENVIRONMENT
+              value: prod
+            - name: NACOS_ENDPOINT
+              value: 'mse-886eff00-nacos-ans.mse.aliyuncs.com:8848'
+            - name: NACOS_NAMESPACE
+              value: '3f36bb60-6861-4fad-a057-9bb6d9a4e51d'
+            - name: SITE
+              value: cn
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 5
+          name: mytestapp-prod
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "32Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 120
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - mytestapp-prod
+              topologyKey: kubernetes.io/hostname
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - mytestapp-prod
+              topologyKey: topology.kubernetes.io/zone
