@@ -21,7 +21,7 @@ env:
   KUBECTL_VERSION: v1.32.2
   NAMESPACE: shprod
   REPO_NS: mxrag
-  DEPLOYMENT: mytestapp-prod
+  DEPLOYMENT: table-search-prod
 
   REPO: ${{ secrets.ALI_DOCKER_REGISTRY }}
   REPO_USER: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}

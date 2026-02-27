@@ -14,7 +14,7 @@ env:
   KUBECTL_VERSION: v1.32.2
   NAMESPACE: shpre
   REPO_NS: atom-pre
-  DEPLOYMENT: mytestapp-pre
+  DEPLOYMENT: table-search-pre
 
   REPO: ${{ secrets.ALI_DOCKER_REGISTRY }}
   REPO_USER: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}

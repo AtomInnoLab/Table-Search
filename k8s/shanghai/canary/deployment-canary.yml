@@ -2,24 +2,24 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: shprod
-  name: mytestapp-prod-canary
+  name: table-search-prod-canary
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mytestapp-prod-canary
+      app: table-search-prod-canary
       version: v2
   template:
     metadata:
       labels:
-        app: mytestapp-prod-canary
+        app: table-search-prod-canary
         version: v2
     spec:
       imagePullSecrets:
         - name: registry-ali-hangzhou
       containers:
-        - name: mytestapp-prod-canary
-          image: crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/mxrag/mytestapp-prod:20250920142148
+        - name: table-search-prod-canary
+          image: crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/mxrag/table-search-prod:20250920142148
           imagePullPolicy: IfNotPresent
           env:
             - name: NACOS_ENABLE
@@ -32,7 +32,7 @@ spec:
               value: mse-886eff00-nacos-ans.mse.aliyuncs.com:8848
             - name: NACOS_NAMESPACE
               value: 3f36bb60-6861-4fad-a057-9bb6d9a4e51d
-            - name: aliyun_logs_mytestapp-prod-canary
+            - name: aliyun_logs_table-search-prod-canary
               value: stdout
             - name: SITE
               value: cn
