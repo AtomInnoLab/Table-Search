@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: shdev
+  name: mytestapp-dev-service
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: tcp8080
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: mytestapp-dev
+    version: v1
+  sessionAffinity: None
+  type: ClusterIP
