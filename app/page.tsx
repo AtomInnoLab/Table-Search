@@ -128,20 +128,17 @@ export default function Home() {
             <p className="text-gray-400 text-sm max-w-lg leading-relaxed">
               {t('emptyDescription')}
             </p>
-            <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-2">
-              {['LLM memory optimization', 'attention mechanism', 'model architecture comparison'].map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => searchBarRef.current?.typewrite(tag)}
-                  className="px-3 py-1.5 bg-white rounded-full text-xs text-gray-500 shadow-sm ring-1 ring-gray-200/60 hover:ring-indigo-300 hover:text-indigo-600 hover:shadow-md active:scale-95 transition-all cursor-pointer"
-                >
-                  {tag}
-                </button>
-              ))}
+            <div className="mt-6 sm:mt-8 flex justify-center">
+              <button
+                onClick={() => searchBarRef.current?.typewrite('Find a paper using a distillation method to train models', { onboarding: true })}
+                className="px-3 py-1.5 bg-white rounded-full text-xs text-gray-500 shadow-sm ring-1 ring-gray-200/60 hover:ring-indigo-300 hover:text-indigo-600 hover:shadow-md active:scale-95 transition-all cursor-pointer"
+              >
+                Find a paper using a distillation method to train models
+              </button>
             </div>
 
             {/* Recent Projects */}
-            <div className="mt-8 sm:mt-10 w-full max-w-2xl">
+            <div className="mt-8 sm:mt-10 w-full max-w-3xl">
               <ProjectPanel />
             </div>
           </div>

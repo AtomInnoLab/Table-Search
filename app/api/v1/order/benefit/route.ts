@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const cookieToken = request.cookies.get('token')?.value
   const authHeader = request.headers.get('authorization')
+  console.log('[benefit] cookie:', cookieToken ? 'yes' : 'no', '| auth header:', authHeader || 'none')
+
   if (!cookieToken && !authHeader) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

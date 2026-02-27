@@ -77,7 +77,7 @@ export function useSearch() {
   // ---------- 搜索 ----------
 
   const doSearch = useCallback(
-    async (query: string) => {
+    async (query: string, opts?: { onboarding?: boolean }) => {
       if (!query.trim()) return
       abortAll()
       initSearch(query)
@@ -89,11 +89,10 @@ export function useSearch() {
       const paperIds: string[] = []
       const columnIds: string[] = []
 
-      await client.connectPost(searchApi.stream(), {
-        query,
-        page: 1,
-        page_size: 20,
-      }, {
+      const url = opts?.onboarding ? searchApi.onboarding() : searchApi.stream()
+      const body = opts?.onboarding ? {} : { query, page: 1, page_size: 20 }
+
+      await client.connectPost(url, body, {
         onMessage: (event, data) => {
           if (event === 'session') {
             newSessionId = data.session_id

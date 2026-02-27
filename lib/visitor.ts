@@ -18,5 +18,6 @@ export function getVisitorKey(): string | null {
 
 export function getVisitorHeaders(): Record<string, string> {
   const key = getVisitorKey()
+  if (key) console.log('[visitor] key found:', key.slice(0, 8) + '...')
   return key ? { Authorization: key } : {}
 }

@@ -8,7 +8,7 @@ import { quotaApi } from '@/lib/api'
 import { getVisitorHeaders } from '@/lib/visitor'
 
 export interface SearchBarHandle {
-  typewrite: (text: string) => void
+  typewrite: (text: string, opts?: { onboarding?: boolean }) => void
 }
 
 const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
@@ -51,7 +51,7 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
     }
   }, [])
 
-  const typewrite = useCallback((text: string) => {
+  const typewrite = useCallback((text: string, opts?: { onboarding?: boolean }) => {
     if (typingRef.current) clearTimeout(typingRef.current)
     setInputValue('')
     let i = 0
@@ -62,7 +62,7 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
         typingRef.current = setTimeout(tick, 30 + Math.random() * 40)
       } else {
         typingRef.current = null
-        doSearch(text)
+        doSearch(text, opts)
       }
     }
     typingRef.current = setTimeout(tick, 100)

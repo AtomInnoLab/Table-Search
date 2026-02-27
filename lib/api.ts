@@ -10,6 +10,7 @@ export function getApiUrl(path: string): string {
 
 export const searchApi = {
   stream: () => getApiUrl('/search/stream'),
+  onboarding: () => getApiUrl('/search/onboarding/stream'),
   rest: () => getApiUrl('/search'),
 }
 
