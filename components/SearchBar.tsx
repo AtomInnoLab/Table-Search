@@ -4,6 +4,8 @@ import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardR
 import { useMatrixStore } from '@/stores/useMatrixStore'
 import { useSearch } from '@/hooks/useSearch'
 import { useT } from '@/i18n'
+import { quotaApi } from '@/lib/api'
+import { getVisitorHeaders } from '@/lib/visitor'
 
 export interface SearchBarHandle {
   typewrite: (text: string) => void
@@ -11,11 +13,30 @@ export interface SearchBarHandle {
 
 const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
   const [inputValue, setInputValue] = useState('')
+  const [quota, setQuota] = useState<{ used: number; limit: number | null } | null>(null)
   const query = useMatrixStore((s) => s.query)
-  const sessionId = useMatrixStore((s) => s.sessionId)
   const { doSearch, isSearching } = useSearch()
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevSearchingRef = useRef(false)
   const t = useT()
+
+  const fetchQuota = useCallback(() => {
+    fetch(quotaApi.benefit(), { headers: getVisitorHeaders(), credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setQuota(data) })
+      .catch(() => {})
+  }, [])
+
+  // Fetch quota on mount
+  useEffect(() => { fetchQuota() }, [fetchQuota])
+
+  // Refetch quota when search completes (isSearching: true → false)
+  useEffect(() => {
+    if (prevSearchingRef.current && !isSearching) {
+      fetchQuota()
+    }
+    prevSearchingRef.current = isSearching
+  }, [isSearching, fetchQuota])
 
   // Sync inputValue when query changes externally (e.g. loading a project)
   useEffect(() => {
@@ -106,12 +127,11 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
         </button>
       </div>
 
-      {query && sessionId && (
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-100/70">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          <span>{t('resultsFor')} <span className="text-white/90 font-medium">{query}</span></span>
+      {quota && (
+        <div className="mt-2 text-xs text-white/50">
+          {quota.limit === null
+            ? t('searchQuotaUnmetered', { used: String(quota.used) })
+            : t('searchQuota', { used: String(quota.used), limit: String(quota.limit) })}
         </div>
       )}
     </div>

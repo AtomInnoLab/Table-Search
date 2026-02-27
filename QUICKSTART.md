@@ -98,7 +98,6 @@ npm run dev
 # === 搜索配置：Wispaper Search API ===
 USE_MOCK_SEARCH=false
 WISPAPER_API_URL=https://gateway.dev.wispaper.ai/api/v1/search/completions
-WISPAPER_AUTH_TOKEN=<JWT token>
 
 # === 抽取配置：MiniMax LLM ===
 USE_MOCK_EXTRACTION=false
@@ -123,7 +122,7 @@ MINIMAX_MODEL=MiniMax-M2.5
 curl -X POST 'https://gateway.dev.wispaper.ai/api/v1/search/completions' \
   -H 'accept: text/event-stream' \
   -H 'content-type: application/json' \
-  -H 'authorization: Bearer <WISPAPER_AUTH_TOKEN>' \
+  -H 'authorization: Bearer <user-cookie-token>' \
   -H 'cache-control: no-cache' \
   -d '{"message":"test","stream":false,"search_scholar":true,"slow_search":true,"offset":0,"limit":5,"x-billing":"search"}'
 ```

@@ -341,7 +341,6 @@ Backend configuration is managed via environment variables (`.env` file in `back
 | `USE_MOCK_SEARCH` | `true` | Use mock data for search |
 | `USE_MOCK_EXTRACTION` | `true` | Use mock data for extraction |
 | `WISPAPER_API_URL` | `https://gateway.dev.wispaper.ai/api/v1/search/completions` | Wispaper Search API endpoint |
-| `WISPAPER_AUTH_TOKEN` | `""` | Wispaper Bearer token (JWT) |
 | `MINIMAX_API_KEY` | `""` | MiniMax LLM API key |
 | `MINIMAX_BASE_URL` | `https://api.minimax.chat/v1` | MiniMax API base URL |
 | `MINIMAX_MODEL` | `MiniMax-M2.5` | Model name for extraction |
@@ -355,7 +354,6 @@ To use real search and extraction:
 # backend/.env
 USE_MOCK_SEARCH=false
 USE_MOCK_EXTRACTION=false
-WISPAPER_AUTH_TOKEN=your-jwt-token
 MINIMAX_API_KEY=your-key-here
 ```
 
@@ -487,7 +485,7 @@ POST https://gateway.dev.wispaper.ai/api/v1/search/completions
 ```http
 Accept: text/event-stream
 Content-Type: application/json
-Authorization: Bearer <WISPAPER_AUTH_TOKEN>
+Authorization: Bearer <user-cookie-token>
 Cache-Control: no-cache
 ```
 
@@ -587,7 +585,7 @@ The token is a JWT issued by `https://auth.dev.wispaper.ai/oidc`. It has an expi
 curl -X POST 'https://gateway.dev.wispaper.ai/api/v1/search/completions' \
   -H 'accept: text/event-stream' \
   -H 'content-type: application/json' \
-  -H 'authorization: Bearer <WISPAPER_AUTH_TOKEN>' \
+  -H 'authorization: Bearer <user-cookie-token>' \
   -H 'cache-control: no-cache' \
   -d '{
     "message": "transformer attention mechanism",
