@@ -2,19 +2,19 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: shdev
-  name: mytestapp-dev-service
+  name: table-search-dev-service
 spec:
   internalTrafficPolicy: Cluster
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack
   ports:
-    - name: tcp8080
-      port: 8080
+    - name: tcp80
+      port: 80
       protocol: TCP
-      targetPort: 8080
+      targetPort: 80
   selector:
-    app: mytestapp-dev
+    app: table-search-dev
     version: v1
   sessionAffinity: None
   type: ClusterIP
