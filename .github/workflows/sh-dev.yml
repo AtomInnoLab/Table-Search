@@ -14,7 +14,7 @@ env:
   KUBECTL_VERSION: v1.32.2
   NAMESPACE: shdev
   REPO_NS: mxrag-dev
-  DEPLOYMENT: mytestapp-dev
+  DEPLOYMENT: table-search-dev
 
   REPO: ${{ secrets.ALI_DOCKER_REGISTRY }}
   REPO_USER: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}

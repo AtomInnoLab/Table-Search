@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mytestapp-dev
+  name: table-search-dev
   namespace: shdev
 spec:
   progressDeadlineSeconds: 600
@@ -9,7 +9,7 @@ spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: mytestapp-dev
+      app: table-search-dev
       version: v1
   strategy:
     rollingUpdate:
@@ -20,21 +20,21 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
-        app: mytestapp-dev
+        app: table-search-dev
         version: v1
     spec:
       imagePullSecrets:
         - name: registry-ali-hangzhou
       containers:
         - image: >-
-            crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/mxrag-dev/mytestapp-dev:20251027184459
+            crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/mxrag-dev/table-search-dev:20251027184459
           imagePullPolicy: IfNotPresent
           env:
             - name: NACOS_ENABLE
               value: 'true'
             - name: APP_PROFILE
               value: dev
-            - name: aliyun_logs_mytestapp-dev
+            - name: aliyun_logs_table-search-dev
               value: stdout
             - name: ENVIRONMENT
               value: dev
@@ -52,7 +52,7 @@ spec:
             tcpSocket:
               port: 8080
             timeoutSeconds: 5
-          name: mytestapp-dev
+          name: table-search-dev
           ports:
             - containerPort: 8080
               protocol: TCP
