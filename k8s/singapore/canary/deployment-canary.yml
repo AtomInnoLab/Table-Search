@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: prod-ns
+  name: table-search-prod-canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: table-search-prod-canary
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: table-search-prod-canary
+        version: v2
+    spec:
+      containers:
+        - name: table-search-prod-canary
+          image: crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/mxrag/table-search-prod:20250920142148
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: aliyun_logs_table-search-prod-canary
+              value: stdout
+            - name: ENVIRONMENT
+              value: canary
+            - name: NACOS_ENDPOINT
+              value: 'mse-c676d9310-nacos-ans.mse.aliyuncs.com:8848'
+            - name: NACOS_NAMESPACE
+              value: '51c50bd1-e6fc-424b-b8a8-9c103c658c68'
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "32Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2048Mi"
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: registry-ali-hangzhou
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 120

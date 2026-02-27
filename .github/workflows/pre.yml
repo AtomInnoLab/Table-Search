@@ -1,0 +1,105 @@
+name: pre
+
+on:
+  pull_request_target:
+    branches: [pre]
+    types: [closed]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.base.ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  KUBECTL_VERSION: v1.32.2
+  NAMESPACE: pre
+  REPO_NS: atom-pre
+  REGION_ID: ap-southeast-1
+  DEPLOYMENT: table-search-pre
+
+  REPO: ${{ secrets.ALI_DOCKER_REGISTRY }}
+  REPO_USER: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}
+  REPO_PASSWD: ${{ secrets.ALI_DOCKER_REGISTRY_PASSWD_PENGHAO }}
+  FEISHU_WEBHOOK_URL_PRE: ${{ secrets.FEISHU_WEBHOOK_URL_PRE }}
+  KUBECONFIG_DEV: ${{ secrets.KUBECONFIG_DEV }}
+
+jobs:
+  build_and_push:
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
+    name: build_and_push
+    permissions:
+      contents: write
+    runs-on: [ubuntu-22.04]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref || github.ref }}
+
+      - name: Get tag
+        shell: bash
+        run: |
+          datetime_now=$(TZ='Asia/Shanghai' date "+%Y%m%d%H%M%S")
+          echo "DOCKER_TAG=${datetime_now}" >> $GITHUB_ENV
+
+      - name: Log in to Aliyun ACR
+        run: |
+          docker login \
+            -u ${{ env.REPO_USER }} \
+            -p ${{ env.REPO_PASSWD }} \
+            ${{ env.REPO }}
+
+      - name: Build and push Docker image
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get install -y retry
+          docker build -t ${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }} .
+          retry -t 5 -- \
+            docker push ${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}
+
+      - name: Setup kubectl
+        uses: ./.github/actions/setup-kubectl-ack
+        with:
+          kubectl-version: ${{ env.KUBECTL_VERSION }}
+          kubeconfig-env: ${{ env.KUBECONFIG_DEV }}
+
+      - name: Update
+        run: |
+          kubectl -n "${{ env.NAMESPACE }}" set image deployment/${{ env.DEPLOYMENT }} \
+            ${{ env.DEPLOYMENT }}=${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}
+
+      - name: Notify Feishu - update
+        uses: ./.github/actions/send-feishu-v2
+        with:
+          webhook: ${{ env.FEISHU_WEBHOOK_URL_PRE }}
+          status-emoji: "🟢"
+          title: "ACK: ${{ env.DEPLOYMENT }} released"
+          details: |
+            仓库: ${{ github.repository }}
+            分支: ${{ github.ref_name }}
+            提交: ${{ github.sha }}
+            镜像: ${{ env.DOCKER_TAG }}
+
+  notify_failed_job:
+    name: notify_failed_job
+    needs: [build_and_push]
+    if: always() && needs.build_and_push.result == 'failure'
+    runs-on: [ubuntu-22.04]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref || github.ref }}
+      
+      - name: Notify Feishu - failed
+        uses: ./.github/actions/send-feishu-v2
+        with:
+          webhook: ${{ env.FEISHU_WEBHOOK_URL_PRE }}
+          status-emoji: "🔴"
+          title: "ACK: ${{ env.DEPLOYMENT }} failed"
+          details: |
+            仓库: ${{ github.repository }}
+            分支: ${{ github.ref_name }}
+            提交: ${{ github.sha }}
