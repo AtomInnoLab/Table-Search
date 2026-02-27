@@ -9,7 +9,8 @@ export interface Messages {
   searchPlaceholder: string
   searchButton: string
   searchingButton: string
-  resultsFor: string
+  searchQuota: string
+  searchQuotaUnmetered: string
 
   // Empty state
   emptyTitle: string

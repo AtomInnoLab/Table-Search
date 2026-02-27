@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+
+# Build artifacts
+.next
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+.claude
+
+# Docs & screenshots
+*.md
+docs/
+screenshots/
+*.png
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Env files (injected at runtime)
+.env
+.env.local
+
+# Misc
+*.log
+.DS_Store

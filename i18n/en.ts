@@ -9,7 +9,8 @@ const en: Messages = {
   searchPlaceholder: 'Enter your research question...',
   searchButton: 'Search',
   searchingButton: 'Searching',
-  resultsFor: 'Results for:',
+  searchQuota: 'Search quota: {used}/{limit}',
+  searchQuotaUnmetered: 'Search quota: {used} used (unmetered)',
 
   // Empty state
   emptyTitle: 'Explore Research Literature',
