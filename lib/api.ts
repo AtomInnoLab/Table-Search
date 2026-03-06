@@ -2,7 +2,7 @@
  * API utility functions
  */
 
-const API_BASE_URL = '/tools/table-search/api/v1'
+const API_BASE_URL = '/agents/literature-matrix/api/v1'
 
 export function getApiUrl(path: string): string {
   return `${API_BASE_URL}${path}`
