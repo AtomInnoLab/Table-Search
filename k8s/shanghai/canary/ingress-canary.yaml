@@ -21,7 +21,7 @@ spec:
               service:
                 name: table-search-prod-service-canary
                 port:
-                  number: 8080
+                  number: 80
             path: /
             pathType: Prefix
   tls:
