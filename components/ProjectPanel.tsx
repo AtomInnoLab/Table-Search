@@ -69,7 +69,7 @@ export default function ProjectPanel() {
         </svg>
         <h3 className="text-sm font-semibold text-gray-500">{t('recentProjects')}</h3>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex flex-col gap-2">
         {projects.map((p) => (
           <ProjectCard
             key={p.id}
@@ -115,7 +115,7 @@ function ProjectCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-gray-800 truncate">{project.name}</div>
+          <div className="text-sm font-medium text-gray-800 line-clamp-2">{project.name}</div>
           <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400">
             <span>{t('projectPapers', { count: project.paperCount })}</span>
             <span className="w-0.5 h-0.5 rounded-full bg-gray-300" />
