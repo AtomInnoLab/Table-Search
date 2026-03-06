@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
-  basePath: '/tools/table-search',
+  basePath: '/agents/literature-matrix',
   experimental: {
     instrumentationHook: true,
     serverActions: {
