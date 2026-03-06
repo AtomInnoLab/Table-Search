@@ -26,7 +26,7 @@ export default function Home() {
 
   // Log ENVIRONMENT from server
   useEffect(() => {
-    fetch('/tools/table-search/api/env')
+    fetch('/agents/lit-matrix/api/env')
       .then((r) => r.json())
       .then((d) => console.log(`ENVIRONMENT=${d.ENVIRONMENT}`))
       .catch(() => {})

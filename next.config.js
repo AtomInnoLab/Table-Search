@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,
-  basePath: '/tools/table-search',
+  basePath: '/agents/lit-matrix',
   experimental: {
     instrumentationHook: true,
     serverActions: {
