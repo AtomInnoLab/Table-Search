@@ -29,7 +29,7 @@ spec:
             - name: NACOS_NAMESPACE
               value: '51c50bd1-e6fc-424b-b8a8-9c103c658c68'
           ports:
-            - containerPort: 80
+            - containerPort: 3000
               protocol: TCP
           resources:
             requests:
@@ -40,14 +40,14 @@ spec:
               memory: "2048Mi"
           livenessProbe:
             tcpSocket:
-              port: 80
+              port: 3000
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             tcpSocket:
-              port: 80
+              port: 3000
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
