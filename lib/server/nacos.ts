@@ -60,15 +60,15 @@ function parseEnvContent(content: string): Record<string, string> {
 }
 
 export async function fetchNacosConfig(): Promise<void> {
-  const serverAddr = process.env.NACOS_SERVER_ADDR
+  const serverAddr = process.env.NACOS_ENDPOINT
   if (!serverAddr) {
-    console.log('[nacos] NACOS_SERVER_ADDR not set, skipping Nacos config fetch')
+    console.log('[nacos] NACOS_ENDPOINT not set, skipping Nacos config fetch')
     return
   }
 
   const namespace = process.env.NACOS_NAMESPACE || 'public'
-  const dataId = process.env.NACOS_DATA_ID || 'table-search'
-  const group = process.env.NACOS_GROUP || 'DEFAULT_GROUP'
+  const dataId = process.env.NACOS_DATA_ID || '.env'
+  const group = process.env.NACOS_GROUP || 'table-search'
   const username = process.env.NACOS_USERNAME
   const password = process.env.NACOS_PASSWORD
 
@@ -98,17 +98,13 @@ export async function fetchNacosConfig(): Promise<void> {
 
     const content = await res.text()
     const entries = parseEnvContent(content)
-    console.log("============================00001",process.env.USE_MOCK_SEARCH);
 
     // Inject into process.env, overwriting existing values
     let injected = 0
     for (const [key, value] of Object.entries(entries)) {
       process.env[key] = value
       injected++
-    }
-
-    console.log("============================00002",process.env.USE_MOCK_SEARCH);
-    
+    }    
 
     console.log(
       `[nacos] Loaded config from ${dataId}@${group} (namespace=${namespace}): ` +
