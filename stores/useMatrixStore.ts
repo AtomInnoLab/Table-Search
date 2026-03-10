@@ -26,6 +26,7 @@ interface MatrixStore {
   hasMore: boolean
   newPaperIds: Set<string>
   totalSearched: number
+  visibleCount: number
 
   // 搜索
   setSessionId: (id: string) => void
@@ -48,6 +49,7 @@ interface MatrixStore {
   // 分页
   incrementPage: () => void
   setHasMore: (v: boolean) => void
+  showMore: () => void
 
   // 恢复
   hydrateFromProject: (data: HydrateData) => void
@@ -70,6 +72,7 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
   hasMore: true,
   newPaperIds: new Set(),
   totalSearched: 0,
+  visibleCount: 10,
 
   setSessionId: (sessionId) => set({ sessionId }),
 
@@ -86,27 +89,14 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
       hasMore: true,
       newPaperIds: new Set(),
       totalSearched: 0,
+      visibleCount: 10,
     }),
 
   addPaper: (paper) =>
     set((s) => {
-      const score = paper.score ?? 0
-      const papers = [...s.papers]
-      // Binary search for descending score insertion
-      let lo = 0
-      let hi = papers.length
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1
-        if ((papers[mid].score ?? 0) >= score) {
-          lo = mid + 1
-        } else {
-          hi = mid
-        }
-      }
-      papers.splice(lo, 0, paper)
       const newPaperIds = new Set(s.newPaperIds)
       newPaperIds.add(paper.id)
-      return { papers, newPaperIds }
+      return { papers: [...s.papers, paper], newPaperIds }
     }),
 
   clearNewPaperId: (id) =>
@@ -164,6 +154,8 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
 
   setHasMore: (hasMore) => set({ hasMore }),
 
+  showMore: () => set((s) => ({ visibleCount: s.visibleCount + 10 })),
+
   hydrateFromProject: (data) =>
     set({
       sessionId: data.sessionId,
@@ -177,6 +169,7 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
       currentPage: 1,
       hasMore: true,
       newPaperIds: new Set(),
+      visibleCount: data.papers.length,
     }),
 
   reset: () =>
@@ -192,5 +185,6 @@ export const useMatrixStore = create<MatrixStore>((set, get) => ({
       hasMore: true,
       newPaperIds: new Set(),
       totalSearched: 0,
+      visibleCount: 10,
     }),
 }))

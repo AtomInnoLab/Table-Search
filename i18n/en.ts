@@ -56,6 +56,11 @@ const en: Messages = {
   timeHoursAgo: '{count}h ago',
   timeDaysAgo: '{count}d ago',
 
+  // Auth
+  loginRequired: 'Login Required',
+  loginRequiredDesc: 'Please log in to access this feature.',
+  loginButton: 'Go to Login',
+
   // Language toggle
   langEN: 'EN',
   langZH: '中文',
