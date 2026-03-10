@@ -290,6 +290,8 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   // cookie token → "Bearer <token>"; otherwise forward Authorization header as-is (e.g. "MR-xxx")
   const authorization = cookieToken ? `Bearer ${cookieToken}` : authHeader || undefined
+  console.log("============================00003",process.env.USE_MOCK_SEARCH);
+
   const stream = config.USE_MOCK_SEARCH
     ? mockSearchStream(query, page, pageSize)
     : wispaperSearchStream(query, page, pageSize, authorization)

@@ -98,6 +98,7 @@ export async function fetchNacosConfig(): Promise<void> {
 
     const content = await res.text()
     const entries = parseEnvContent(content)
+    console.log("============================00001",process.env.USE_MOCK_SEARCH);
 
     // Inject into process.env, overwriting existing values
     let injected = 0
@@ -105,6 +106,9 @@ export async function fetchNacosConfig(): Promise<void> {
       process.env[key] = value
       injected++
     }
+
+    console.log("============================00002",process.env.USE_MOCK_SEARCH);
+    
 
     console.log(
       `[nacos] Loaded config from ${dataId}@${group} (namespace=${namespace}): ` +
