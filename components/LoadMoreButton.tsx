@@ -5,21 +5,33 @@ import { useSearch } from '@/hooks/useSearch'
 import { useT } from '@/i18n'
 
 export default function LoadMoreButton() {
+  const papers = useMatrixStore((s) => s.papers)
+  const visibleCount = useMatrixStore((s) => s.visibleCount)
   const hasMore = useMatrixStore((s) => s.hasMore)
   const currentPage = useMatrixStore((s) => s.currentPage)
   const incrementPage = useMatrixStore((s) => s.incrementPage)
-  const { loadMore, isSearching, isExtracting } = useSearch()
+  const showMore = useMatrixStore((s) => s.showMore)
+  const { loadMore, startExtractionForVisible, isSearching, isExtracting } = useSearch()
   const t = useT()
 
-  if (!hasMore) return null
+  // Nothing more to show locally or from backend
+  const hasHiddenPapers = visibleCount < papers.length
+  if (!hasHiddenPapers && !hasMore) return null
 
   const loading = isSearching || isExtracting
 
   const handleClick = () => {
     if (loading) return
-    const nextPage = currentPage + 1
-    incrementPage()
-    loadMore(nextPage)
+    if (hasHiddenPapers) {
+      // Reveal next 10 locally and extract them
+      showMore()
+      startExtractionForVisible()
+    } else {
+      // Fetch more from backend
+      const nextPage = currentPage + 1
+      incrementPage()
+      loadMore(nextPage)
+    }
   }
 
   return (

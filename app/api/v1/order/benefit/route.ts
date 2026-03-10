@@ -3,7 +3,7 @@ import { config } from '@/lib/server/config'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const cookieToken = request.cookies.get('token')?.value
   const authHeader = request.headers.get('authorization')
   console.log('[benefit] cookie:', cookieToken ? 'yes' : 'no', '| auth header:', authHeader || 'none')

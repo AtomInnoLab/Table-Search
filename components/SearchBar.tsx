@@ -14,6 +14,7 @@ export interface SearchBarHandle {
 const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
   const [inputValue, setInputValue] = useState('')
   const [quota, setQuota] = useState<{ used: number; limit: number | null } | null>(null)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const query = useMatrixStore((s) => s.query)
   const { doSearch, isSearching } = useSearch()
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -21,11 +22,17 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
   const t = useT()
 
   const fetchQuota = useCallback(() => {
-    fetch(quotaApi.benefit(), { headers: getVisitorHeaders(), credentials: 'include' })
-      .then((r) => r.ok ? r.json() : null)
+    fetch(quotaApi.benefit(), { method: 'POST', headers: getVisitorHeaders(), credentials: 'include' })
+      .then((r) => {
+        if (r.status === 401) {
+          setShowLoginModal(true)
+          return null
+        }
+        return r.ok ? r.json() : null
+      })
       .then((data) => { if (data) setQuota(data) })
       .catch(() => {})
-  }, [])
+  }, [t])
 
   // Fetch quota on mount
   useEffect(() => { fetchQuota() }, [fetchQuota])
@@ -132,6 +139,29 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
           {quota.limit === null
             ? t('searchQuotaUnmetered', { used: String(quota.used) })
             : t('searchQuota', { used: String(quota.used), limit: String(quota.limit) })}
+        </div>
+      )}
+
+      {/* Login required modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm w-full mx-4 animate-in fade-in zoom-in-95">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m9.364-7.364A9 9 0 1112 3a9 9 0 017.364 4.636z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('loginRequired')}</h3>
+              <p className="text-sm text-gray-500 mb-6">{t('loginRequiredDesc')}</p>
+              <button
+                onClick={() => { window.location.href = '/app/search' }}
+                className="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+              >
+                {t('loginButton')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

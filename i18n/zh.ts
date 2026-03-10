@@ -56,6 +56,11 @@ const zh: Messages = {
   timeHoursAgo: '{count} 小时前',
   timeDaysAgo: '{count} 天前',
 
+  // Auth
+  loginRequired: '需要登录',
+  loginRequiredDesc: '请先登录后再继续使用此功能。',
+  loginButton: '前往登录',
+
   // Language toggle
   langEN: 'EN',
   langZH: '中文',
