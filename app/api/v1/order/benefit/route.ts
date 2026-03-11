@@ -35,14 +35,9 @@ export async function POST(request: NextRequest) {
     const json = await res.json()
     const data = json.data
 
-    const used: number = data?.usage?.search ?? 0
+    const remainingCredits: string = data?.remaining_credits ?? '0'
 
-    const quotas: Array<{ product_type: string; limit: number }> =
-      data?.plan?.metadata?.product_quotas ?? []
-    const searchQuota = quotas.find((q) => q.product_type === 'search')
-    const limit: number | null = searchQuota?.limit ?? null
-
-    return NextResponse.json({ used, limit })
+    return NextResponse.json({ remainingCredits })
   } catch (err) {
     console.error('[benefit] Failed to fetch quota:', err)
     return NextResponse.json(

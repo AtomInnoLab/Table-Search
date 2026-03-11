@@ -48,20 +48,21 @@ function mockSearchStream(
           ),
         )
 
+        // Send columns first so frontend can start extraction as soon as enough papers arrive
+        const columns = getSuggestedColumns(query)
+        for (const col of columns) {
+          await sleep(50)
+          controller.enqueue(
+            encoder.encode(sseEvent('column', JSON.stringify(col))),
+          )
+        }
+
         const papers = getMockPapers(query, page, pageSize)
         for (const paper of papers) {
           await sleep(80)
           storePaper(paper.id, paper as unknown as Record<string, unknown>)
           controller.enqueue(
             encoder.encode(sseEvent('paper', JSON.stringify(paper))),
-          )
-        }
-
-        const columns = getSuggestedColumns(query)
-        for (const col of columns) {
-          await sleep(50)
-          controller.enqueue(
-            encoder.encode(sseEvent('column', JSON.stringify(col))),
           )
         }
 
@@ -102,6 +103,23 @@ function wispaperSearchStream(
           sseEvent('session', JSON.stringify({ session_id: sessionId })),
         ),
       )
+
+      // Send fixed auto columns early so frontend can start extraction as soon as enough papers arrive
+      for (let i = 0; i < FIXED_AUTO_COLUMNS.length; i++) {
+        const col = FIXED_AUTO_COLUMNS[i]
+        controller.enqueue(
+          encoder.encode(
+            sseEvent(
+              'column',
+              JSON.stringify({
+                id: `col_auto_${i}`,
+                name: col.name,
+                prompt: col.prompt,
+              }),
+            ),
+          ),
+        )
+      }
 
       const offset = (page - 1) * pageSize
       const body = {
@@ -242,23 +260,6 @@ function wispaperSearchStream(
         }
       } catch (err) {
         console.warn(`Wispaper search error for '${query}':`, err)
-      }
-
-      // Send fixed auto columns (Task + Method)
-      for (let i = 0; i < FIXED_AUTO_COLUMNS.length; i++) {
-        const col = FIXED_AUTO_COLUMNS[i]
-        controller.enqueue(
-          encoder.encode(
-            sseEvent(
-              'column',
-              JSON.stringify({
-                id: `col_auto_${i}`,
-                name: col.name,
-                prompt: col.prompt,
-              }),
-            ),
-          ),
-        )
       }
 
       controller.enqueue(

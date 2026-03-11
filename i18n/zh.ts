@@ -9,8 +9,7 @@ const zh: Messages = {
   searchPlaceholder: '输入你的研究问题...',
   searchButton: '搜索',
   searchingButton: '搜索中',
-  searchQuota: '搜索额度：{used}/{limit}',
-  searchQuotaUnmetered: '搜索额度：已用 {used} 次（不限次）',
+  remainingCredits: '剩余 Credits：{credits}',
 
   // Empty state
   emptyTitle: '探索研究文献',
