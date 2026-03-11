@@ -60,15 +60,18 @@ function parseEnvContent(content: string): Record<string, string> {
 }
 
 export async function fetchNacosConfig(): Promise<void> {
-  const serverAddr = process.env.NACOS_SERVER_ADDR
+  const serverAddr = process.env.NACOS_ENDPOINT
   if (!serverAddr) {
-    console.log('[nacos] NACOS_SERVER_ADDR not set, skipping Nacos config fetch')
+    console.log('[nacos] NACOS_ENDPOINT not set, skipping Nacos config fetch')
     return
   }
+  const normalizedServerAddr = /^http/i.test(serverAddr)
+    ? serverAddr
+    : `http://${serverAddr}`
 
   const namespace = process.env.NACOS_NAMESPACE || 'public'
-  const dataId = process.env.NACOS_DATA_ID || 'table-search'
-  const group = process.env.NACOS_GROUP || 'DEFAULT_GROUP'
+  const dataId = process.env.NACOS_DATA_ID || '.env'
+  const group = process.env.NACOS_GROUP || 'table-search'
   const username = process.env.NACOS_USERNAME
   const password = process.env.NACOS_PASSWORD
 
@@ -76,7 +79,7 @@ export async function fetchNacosConfig(): Promise<void> {
     // Authenticate if credentials are provided
     let accessToken: string | undefined
     if (username && password) {
-      accessToken = await getAccessToken(serverAddr, username, password)
+      accessToken = await getAccessToken(normalizedServerAddr, username, password)
     }
 
     // Build config request URL
@@ -89,7 +92,7 @@ export async function fetchNacosConfig(): Promise<void> {
       params.set('accessToken', accessToken)
     }
 
-    const url = `${serverAddr}/nacos/v1/cs/configs?${params.toString()}`
+    const url = `${normalizedServerAddr}/nacos/v1/cs/configs?${params.toString()}`
     const res = await fetch(url)
 
     if (!res.ok) {
@@ -104,7 +107,7 @@ export async function fetchNacosConfig(): Promise<void> {
     for (const [key, value] of Object.entries(entries)) {
       process.env[key] = value
       injected++
-    }
+    }    
 
     console.log(
       `[nacos] Loaded config from ${dataId}@${group} (namespace=${namespace}): ` +
@@ -113,7 +116,7 @@ export async function fetchNacosConfig(): Promise<void> {
     console.log(`ENVIRONMENT=${process.env.ENVIRONMENT ?? 'not set'}`)
   } catch (err) {
     console.warn(
-      `[nacos] Failed to fetch config from ${serverAddr} — falling back to env vars:`,
+      `[nacos] Failed to fetch config from ${normalizedServerAddr} — falling back to env vars:`,
       err instanceof Error ? err.message : err,
     )
   }

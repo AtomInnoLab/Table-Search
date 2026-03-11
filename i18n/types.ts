@@ -55,6 +55,11 @@ export interface Messages {
   timeHoursAgo: string        // "{count}h ago"
   timeDaysAgo: string         // "{count}d ago"
 
+  // Auth
+  loginRequired: string
+  loginRequiredDesc: string
+  loginButton: string
+
   // Language toggle
   langEN: string
   langZH: string

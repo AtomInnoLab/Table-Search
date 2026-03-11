@@ -88,6 +88,17 @@ export function useSearch() {
       let newSessionId = ''
       const paperIds: string[] = []
       const columnIds: string[] = []
+      let extractionTriggered = false
+
+      const tryEarlyExtraction = () => {
+        if (extractionTriggered) return
+        const { visibleCount } = useMatrixStore.getState()
+        if (paperIds.length >= visibleCount && columnIds.length > 0) {
+          extractionTriggered = true
+          const visiblePaperIds = paperIds.slice(0, visibleCount)
+          startExtraction(newSessionId, visiblePaperIds, [...columnIds])
+        }
+      }
 
       const url = opts?.onboarding ? searchApi.onboarding() : searchApi.stream()
       const body = opts?.onboarding ? {} : { query, page: 1, page_size: 20 }
@@ -111,15 +122,19 @@ export function useSearch() {
             }
             addColumn(col)
             columnIds.push(col.id)
+            // 收到 column 时检查是否已有足够论文，立即开始抽取
+            tryEarlyExtraction()
           }
         },
         onComplete: (data) => {
           setIsSearching(false)
           if (data?.searched) setTotalSearched(data.searched)
           if (paperIds.length === 0) setHasMore(false)
-          // Use sorted order from store, not SSE arrival order
-          const sortedPaperIds = useMatrixStore.getState().papers.map((p) => p.id)
-          startExtraction(newSessionId, sortedPaperIds, columnIds)
+          // 如果论文不足 10 篇，在 complete 时触发抽取
+          if (!extractionTriggered && paperIds.length > 0 && columnIds.length > 0) {
+            extractionTriggered = true
+            startExtraction(newSessionId, paperIds, columnIds)
+          }
         },
         onError: (err) => {
           console.error('Search SSE error:', err)
@@ -134,8 +149,8 @@ export function useSearch() {
 
   const extractColumn = useCallback(
     async (columnId: string) => {
-      const { sessionId: sid, papers, columns: allCols } = useMatrixStore.getState()
-      const pids = papers.map((p) => p.id)
+      const { sessionId: sid, papers, columns: allCols, visibleCount } = useMatrixStore.getState()
+      const pids = papers.slice(0, visibleCount).map((p) => p.id)
       if (!sid || pids.length === 0) return
 
       const col = allCols.find((c) => c.id === columnId)
@@ -163,6 +178,24 @@ export function useSearch() {
     [setIsExtracting, updateCell],
   )
 
+  // ---------- 对新显示的论文触发提取 ----------
+
+  const startExtractionForVisible = useCallback(() => {
+    const { sessionId: sid, papers, columns, cells, visibleCount } = useMatrixStore.getState()
+    if (!sid || columns.length === 0) return
+
+    const columnIds = columns.map((c) => c.id)
+    // Find visible papers that haven't been extracted yet
+    const visiblePapers = papers.slice(0, visibleCount)
+    const unextractedIds = visiblePapers
+      .filter((p) => !cells.has(`${p.id}_${columnIds[0]}`))
+      .map((p) => p.id)
+
+    if (unextractedIds.length > 0) {
+      startExtraction(sid, unextractedIds, columnIds)
+    }
+  }, [startExtraction])
+
   // ---------- 加载更多 + 回填 ----------
 
   const loadMore = useCallback(
@@ -175,7 +208,6 @@ export function useSearch() {
       searchClientRef.current = client
 
       const newPaperIds: string[] = []
-      const existingColumnIds = state.columns.map((c) => c.id)
 
       await client.connectPost(searchApi.stream(), {
         query: state.query,
@@ -195,13 +227,7 @@ export function useSearch() {
             setHasMore(false)
             return
           }
-          // 回填：用 store 中排序后的新论文 ID
-          const sortedNewIds = useMatrixStore.getState().papers
-            .filter((p) => newPaperIds.includes(p.id))
-            .map((p) => p.id)
-          if (existingColumnIds.length > 0) {
-            startExtraction(state.sessionId!, sortedNewIds, existingColumnIds)
-          }
+          // 不自动提取，等用户点 Load More 显示后再提取
         },
         onError: (err) => {
           console.error('Load more error:', err)
@@ -209,7 +235,7 @@ export function useSearch() {
         },
       }, getVisitorHeaders())
     },
-    [addPaper, setIsSearching, setHasMore, startExtraction],
+    [addPaper, setIsSearching, setHasMore],
   )
 
   // ---------- 恢复后端 paper cache ----------
@@ -234,5 +260,5 @@ export function useSearch() {
     [],
   )
 
-  return { doSearch, extractColumn, loadMore, abortAll, restoreSession, isSearching, isExtracting }
+  return { doSearch, extractColumn, loadMore, startExtractionForVisible, abortAll, restoreSession, isSearching, isExtracting }
 }
