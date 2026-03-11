@@ -13,7 +13,7 @@ export interface SearchBarHandle {
 
 const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
   const [inputValue, setInputValue] = useState('')
-  const [quota, setQuota] = useState<{ used: number; limit: number | null } | null>(null)
+  const [quota, setQuota] = useState<{ remainingCredits: string } | null>(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const query = useMatrixStore((s) => s.query)
   const { doSearch, isSearching } = useSearch()
@@ -136,9 +136,7 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
 
       {quota && (
         <div className="mt-2 text-xs text-white/50">
-          {quota.limit === null
-            ? t('searchQuotaUnmetered', { used: String(quota.used) })
-            : t('searchQuota', { used: String(quota.used), limit: String(quota.limit) })}
+          {t('remainingCredits', { credits: Math.floor(Number(quota.remainingCredits)).toLocaleString() })}
         </div>
       )}
 

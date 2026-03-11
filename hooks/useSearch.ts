@@ -111,6 +111,8 @@ export function useSearch() {
           } else if (event === 'paper') {
             addPaper(data as Paper)
             paperIds.push(data.id)
+            // column 已先到达，检查论文数是否足够触发抽取
+            tryEarlyExtraction()
           } else if (event === 'column') {
             const s = data as ColumnSuggestion
             const col: Column = {
