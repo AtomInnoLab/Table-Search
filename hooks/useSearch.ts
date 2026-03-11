@@ -9,8 +9,22 @@ import { useRef, useCallback } from 'react'
 import { useMatrixStore } from '@/stores/useMatrixStore'
 import { SSEClient } from '@/lib/sse-client'
 import { searchApi, extractApi, paperApi } from '@/lib/api'
+import { emitAuthRequired, isAuthErrorMessage } from '@/lib/auth-events'
 import { getVisitorHeaders } from '@/lib/visitor'
 import type { Paper, Column, ColumnSuggestion } from '@/types'
+
+function resolveErrorMessage(payload: unknown): string {
+  if (typeof payload === 'string') return payload
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'message' in payload &&
+    typeof payload.message === 'string'
+  ) {
+    return payload.message
+  }
+  return ''
+}
 
 export function useSearch() {
   const {
@@ -68,6 +82,9 @@ export function useSearch() {
         onError: (err) => {
           console.error('Extraction SSE error:', err)
           setIsExtracting(false)
+          if (isAuthErrorMessage(err.message)) {
+            emitAuthRequired()
+          }
         },
       }, getVisitorHeaders())
     },
@@ -124,6 +141,13 @@ export function useSearch() {
             columnIds.push(col.id)
             // 收到 column 时检查是否已有足够论文，立即开始抽取
             tryEarlyExtraction()
+          } else if (event === 'error') {
+            const message = resolveErrorMessage(data)
+            console.error('Search stream event error:', message || data)
+            setIsSearching(false)
+            if (isAuthErrorMessage(message)) {
+              emitAuthRequired()
+            }
           }
         },
         onComplete: (data) => {
@@ -139,6 +163,9 @@ export function useSearch() {
         onError: (err) => {
           console.error('Search SSE error:', err)
           setIsSearching(false)
+          if (isAuthErrorMessage(err.message)) {
+            emitAuthRequired()
+          }
         },
       }, getVisitorHeaders())
     },
@@ -172,6 +199,9 @@ export function useSearch() {
         onError: (err) => {
           console.error('Column extraction error:', err)
           setIsExtracting(false)
+          if (isAuthErrorMessage(err.message)) {
+            emitAuthRequired()
+          }
         },
       }, getVisitorHeaders())
     },
@@ -218,6 +248,13 @@ export function useSearch() {
           if (event === 'paper') {
             addPaper(data as Paper)
             newPaperIds.push(data.id)
+          } else if (event === 'error') {
+            const message = resolveErrorMessage(data)
+            console.error('Load more stream event error:', message || data)
+            setIsSearching(false)
+            if (isAuthErrorMessage(message)) {
+              emitAuthRequired()
+            }
           }
           // 加载更多时忽略 session / column 事件
         },
@@ -232,6 +269,9 @@ export function useSearch() {
         onError: (err) => {
           console.error('Load more error:', err)
           setIsSearching(false)
+          if (isAuthErrorMessage(err.message)) {
+            emitAuthRequired()
+          }
         },
       }, getVisitorHeaders())
     },

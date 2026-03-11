@@ -5,6 +5,7 @@ import { useMatrixStore } from '@/stores/useMatrixStore'
 import { useSearch } from '@/hooks/useSearch'
 import { useT } from '@/i18n'
 import { quotaApi } from '@/lib/api'
+import { AUTH_REQUIRED_EVENT } from '@/lib/auth-events'
 import { getVisitorHeaders } from '@/lib/visitor'
 
 export interface SearchBarHandle {
@@ -36,6 +37,12 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_props, ref) {
 
   // Fetch quota on mount
   useEffect(() => { fetchQuota() }, [fetchQuota])
+
+  useEffect(() => {
+    const onAuthRequired = () => setShowLoginModal((prev) => prev || true)
+    window.addEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
+    return () => window.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired)
+  }, [])
 
   // Refetch quota when search completes (isSearching: true → false)
   useEffect(() => {
