@@ -13,13 +13,13 @@ concurrency:
 env:
   KUBECTL_VERSION: v1.32.2
   NAMESPACE: prod-ns
-  REPO_NS: mxrag
+  REPO_NS: ${{ secrets.ALICLOUD_ACR_SP_NSPROD }}
+  REGION_ID: ap-southeast-1
   DEPLOYMENT: table-search-prod
   CANARY_URL: https://table-search.atominnolab.com
 
-  REPO: ${{ secrets.ALI_DOCKER_REGISTRY }}
-  REPO_USER: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}
-  REPO_PASSWD: ${{ secrets.ALI_DOCKER_REGISTRY_PASSWD_PENGHAO }}
+  REPO_PUB: ${{ secrets.ALICLOUD_ACR_SP_PUBLIC }}
+  REPO_VPC: ${{ secrets.ALICLOUD_ACR_SP_VPC }}
   FEISHU_WEBHOOK_URL_PROD: ${{ secrets.FEISHU_WEBHOOK_URL_PROD }}
   KUBECONFIG_PROD: ${{ secrets.KUBECONFIG_PROD }}
 
@@ -46,22 +46,24 @@ jobs:
           echo "tag=${datetime_now}" >> $GITHUB_OUTPUT
 
       - name: Log in to Aliyun ACR
-        run: |
-          docker login \
-            -u ${{ env.REPO_USER }} \
-            -p ${{ env.REPO_PASSWD }} \
-            ${{ env.REPO }}
+        uses: ./.github/actions/acr-docker-login
+        with:
+          access-key-id: ${{ secrets.ALICLOUD_ACCESS_KEY_PH }}
+          secret-access-key: ${{ secrets.ALICLOUD_SECRET_KEY_PH }}
+          instance-id: ${{ secrets.ALICLOUD_ACR_INSTANCE_ID }}
+          registry-url: ${{ secrets.ALICLOUD_ACR_SP_PUBLIC }}
+          region-id: ${{ env.REGION_ID }}
 
       - name: Build and Push Docker Image
         run: |
           sudo apt-get update && sudo apt-get install -y retry
-          docker build -t ${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }} .
+          docker build -t ${{ env.REPO_PUB }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }} .
           retry -t 5 -- \
-            docker push ${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}
+            docker push ${{ env.REPO_PUB }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}
 
       - name: Set DOCKER_TAG for next job
         run: |
-          echo "Image built: ${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}"
+          echo "Image built: ${{ env.REPO_PUB }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}"
     outputs:
       docker_tag: ${{ steps.docker_tag.outputs.tag }}
 
@@ -86,7 +88,7 @@ jobs:
       - name: Apply canary
         shell: bash
         run: |
-          IMAGE="${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ needs.build_and_push.outputs.docker_tag }}"
+          IMAGE="${{ env.REPO_VPC }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ needs.build_and_push.outputs.docker_tag }}"
           kubectl -n "${{ env.NAMESPACE }}" delete deployment ${{ env.DEPLOYMENT }}-canary --ignore-not-found=true
           kubectl -n "${{ env.NAMESPACE }}" set image \
             -f k8s/singapore/canary/deployment-canary.yml \
