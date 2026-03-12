@@ -55,7 +55,7 @@ spec:
             failureThreshold: 3
       dnsPolicy: ClusterFirst
       imagePullSecrets:
-        - name: registry-ali-hangzhou
+        - name: registry-ali-sp
       restartPolicy: Always
       schedulerName: default-scheduler
       terminationGracePeriodSeconds: 120
