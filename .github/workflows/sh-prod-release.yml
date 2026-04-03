@@ -17,15 +17,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.base.ref || github.ref_name }}
   cancel-in-progress: true
 
+# 上海企业版 ACR：发布 set image 使用 REPO_VPC
 env:
   KUBECTL_VERSION: v1.32.2
   NAMESPACE: shprod
   REPO_NS: mxrag
   DEPLOYMENT: table-search-prod
 
-  REPO: ${{ secrets.ALI_DOCKER_REGISTRY }}
-  REPO_USER: ${{ secrets.ALI_DOCKER_REGISTRY_USERNAME_PENGHAO }}
-  REPO_PASSWD: ${{ secrets.ALI_DOCKER_REGISTRY_PASSWD_PENGHAO }}
+  REPO_VPC: ${{ secrets.ALICLOUD_ACR_SH_EE_VPC }}
   FEISHU_WEBHOOK_URL_PROD_SH: ${{ secrets.FEISHU_WEBHOOK_URL_PROD_SH }}
   KUBECONFIG_PROD_SH: ${{ secrets.KUBECONFIG_PROD_SH }}
 
@@ -109,8 +108,8 @@ jobs:
       - name: Update
         run: |
           kubectl -n "${{ env.NAMESPACE }}" set image deployment/${{ env.DEPLOYMENT }} \
-            ${{ env.DEPLOYMENT }}=${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ needs.get_tag.outputs.docker_tag }}
-          kubectl -n "${{ env.NAMESPACE }}" rollout status deployment/${{ env.DEPLOYMENT }} --timeout=600s
+            ${{ env.DEPLOYMENT }}=${{ env.REPO_VPC }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ needs.get_tag.outputs.docker_tag }}
+          kubectl -n "${{ env.NAMESPACE }}" rollout status "deployment/${{ env.DEPLOYMENT }}" --timeout=600s
 
   delete_canary:
     name: delete_canary
@@ -145,7 +144,7 @@ jobs:
         id: notify
         run: |
           BASE="分支: ${{ github.ref_name }}\n提交: ${{ github.sha }}"
-          REPO="${{ env.REPO }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}"
+          REPO="${{ env.REPO_VPC }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}"
           RUN_LINK="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           if [ "${{ github.event.inputs.approve }}" == "发布" ]; then
