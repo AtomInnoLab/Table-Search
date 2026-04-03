@@ -25,9 +25,10 @@ spec:
     spec:
       imagePullSecrets:
         - name: registry-ali-hangzhou
+        - name: registry-ali-sh-ee
       containers:
         - image: >-
-            crpi-hytqalx0cm8oqxr4.cn-hangzhou.personal.cr.aliyuncs.com/atom-pre/table-search-pre:20251027184459
+            atom-sh-registry-vpc.cn-shanghai.cr.aliyuncs.com/atom-pre/table-search-pre:20251027184459
           imagePullPolicy: IfNotPresent
           env:
             - name: NACOS_ENABLE
