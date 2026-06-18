@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: table-search-pre-canary
+  namespace: shpre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: table-search-pre-canary
+      version: v2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 10
+  template:
+    metadata:
+      labels:
+        app: table-search-pre-canary
+        version: v2
+    spec:
+      containers:
+        - name: table-search-pre-canary
+          image: atom-sh-registry-vpc.cn-shanghai.cr.aliyuncs.com/atom-pre/table-search-pre:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NACOS_ENABLE
+              value: "true"
+            - name: APP_PROFILE
+              value: pre
+            - name: ENVIRONMENT
+              value: pre
+            - name: NACOS_ENDPOINT
+              value: mse-e3004940-nacos-ans.mse.aliyuncs.com:8848
+            - name: NACOS_NAMESPACE
+              value: d54b78a4-4350-41dc-9502-5d6d2e769755
+            - name: SITE
+              value: cn
+            - name: aliyun_logs_table-search-pre-canary
+              value: stdout
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 3000
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 3
+            tcpSocket:
+              port: 3000
+          startupProbe:
+            failureThreshold: 50
+            initialDelaySeconds: 30
+            periodSeconds: 6
+            successThreshold: 1
+            timeoutSeconds: 3
+            tcpSocket:
+              port: 3000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 32Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      imagePullSecrets:
+        - name: registry-ali-hangzhou
+        - name: registry-ali-sh-ee
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 120
