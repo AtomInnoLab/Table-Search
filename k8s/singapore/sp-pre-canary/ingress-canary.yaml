@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: table-search-pre-ingress-canary
+  namespace: pre
+  labels:
+    ingress-controller: alb
+  annotations:
+    alb.ingress.kubernetes.io/canary: 'true'
+    alb.ingress.kubernetes.io/canary-by-header: X-Canary
+    alb.ingress.kubernetes.io/canary-by-header-value: grey
+    alb.ingress.kubernetes.io/order: '1'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80},{"HTTPS": 443}]'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: table-search.wispaperpre.inner
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: &default-backend
+              service:
+                name: table-search-pre-service-canary
+                port:
+                  number: 80
+    - host: table-search-pre.wispaper.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: *default-backend
+  tls:
+    - hosts:
+        - table-search-pre.wispaper.ai
+      secretName: tlspre-wispaper.ai

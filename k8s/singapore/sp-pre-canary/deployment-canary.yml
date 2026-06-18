@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: table-search-pre-canary
+  namespace: pre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: table-search-pre-canary
+      version: v2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 10
+  template:
+    metadata:
+      labels:
+        app: table-search-pre-canary
+        version: v2
+    spec:
+      containers:
+        - name: table-search-pre-canary
+          image: acr-sp-registry-vpc.ap-southeast-1.cr.aliyuncs.com/sp_pre/table-search-pre:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: aliyun_logs_table-search-pre-canary
+              value: stdout
+            - name: ENVIRONMENT
+              value: canary
+            - name: NACOS_ENDPOINT
+              value: mse-9996a1110-nacos-ans.mse.aliyuncs.com:8848
+            - name: NACOS_NAMESPACE
+              value: 918b7045-4408-474d-8cb5-541ff94e5584
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 80
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 3
+            tcpSocket:
+              port: 80
+          startupProbe:
+            failureThreshold: 50
+            initialDelaySeconds: 30
+            periodSeconds: 6
+            successThreshold: 1
+            timeoutSeconds: 3
+            tcpSocket:
+              port: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 32Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      imagePullSecrets:
+        - name: registry-ali-hangzhou
+        - name: registry-ali-sp
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 120
