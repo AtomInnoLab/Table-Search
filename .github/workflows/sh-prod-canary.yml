@@ -27,6 +27,7 @@ jobs:
     name: build_and_push
     permissions:
       contents: write
+      actions: read
     runs-on: [ubuntu-22.04]
     steps:
       - name: Checkout
@@ -48,12 +49,17 @@ jobs:
             -p ${{ env.REPO_PASSWD }} \
             ${{ env.REPO_PUB }}
 
-      - name: Build and Push Docker Image
-        run: |
-          sudo apt-get update && sudo apt-get install -y retry
-          docker build -t ${{ env.REPO_PUB }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }} .
-          retry -t 5 -- \
-            docker push ${{ env.REPO_PUB }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push image (with layer cache)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REPO_PUB }}/${{ env.REPO_NS }}/${{ env.DEPLOYMENT }}:${{ env.DOCKER_TAG }}
+          cache-from: type=gha,scope=table-search-prod
+          cache-to: type=gha,mode=min,scope=table-search-prod,ignore-error=true
 
       - name: Set DOCKER_TAG for next job
         run: |
@@ -66,6 +72,7 @@ jobs:
     name: deploy_canary
     permissions:
       contents: write
+      actions: read
     runs-on: [ubuntu-22.04]
     steps:
       - name: Checkout
